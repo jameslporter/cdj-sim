@@ -1,6 +1,6 @@
 ---
 name: run-cdj-sim
-description: Build, run, and drive the cdj-sim Expo web app. Use when asked to start cdj-sim, run its web dev server, take a screenshot of the CDJ-3000 simulator UI, or interact with controls (jog wheel, hot cues, loop, tempo fader, transport).
+description: Build, run, and drive the cdj-sim Expo web app. Use when asked to start cdj-sim, run its web dev server, take a screenshot of the CDJ-3000 + DJM-V10 simulator UI, or interact with controls (jog wheel, hot cues, loop, tempo fader, transport, mixer channel strips, crossfader, EQ/trim knobs).
 ---
 
 cdj-sim is an Expo Router app (SDK 57). The interactive surface is the
@@ -52,7 +52,7 @@ node .claude/skills/run-cdj-sim/driver.mjs <<'EOF'
 nav http://localhost:8081
 wait-for text=DECK A
 screenshot initial
-click text=▶|nth=1
+click sel=[data-testid="deckA-play-button"]
 wait 1200
 screenshot playing
 console-errors
@@ -73,6 +73,7 @@ lsof -ti:8081 -sTCP:LISTEN | xargs -r kill
 
 | command | what it does |
 |---|---|
+| `viewport <width> <height>` | resize the page — must be the first command, before `nav`. Default is `420x1100` (phone-ish); use something like `700x1900` to see the mixer's 6 channels + master/beat-fx without scrolling as much |
 | `nav <url>` | navigate |
 | `wait-for text=<text>[\|nth=N]` | wait for an element with exact text |
 | `wait <ms>` | pause |
@@ -88,17 +89,69 @@ lsof -ti:8081 -sTCP:LISTEN | xargs -r kill
 | `console-errors` | prints all `console.error`/`pageerror` messages seen so far |
 | `quit` | close the browser and exit |
 
-Every interactive control in `components/` has a `testID` (e.g.
-`play-button`, `jog-wheel`, `tempo-fader-thumb`, `hotcue-A`,
-`loop-4beat`, `loop-8beat`, `loop-reloop-exit`, `beatjump-back`,
-`beatjump-forward`, `beatjump-count`, `mode-reverse`, `mode-slip`,
-`mode-vinyl`, `tempo-range`, `tempo-master`, `tempo-reset`,
-`search-back`, `search-forward`, `cue-button`, `browse-prev`,
-`browse-next`, `browse-load`, `time-toggle`). react-native-web maps
+### Layout: two decks + one mixer, side by side
+
+The root route (`app/index.js`) renders `DECK A | DJM-V10 mixer | DECK B`
+inside one `horizontal` `ScrollView` (`testID="session-scroll"`, ~1460px
+of total content). At the default `420`-wide viewport you only see one
+column at a time — scroll it with `eval`, e.g.:
+
+```
+eval document.querySelector('[data-testid="session-scroll"]').scrollBy({left: 420})
+```
+
+(`420` lands on the mixer, `1040` lands on Deck B — content widths are
+Deck 420px + Mixer 620px + Deck 420px.) Each column also has its own
+internal vertical `ScrollView` (deck: `testID="deckA-scroll"` /
+`"deckB-scroll"`; mixer: `testID="mixer-scroll"`) since a single column
+is taller than most viewports — scroll those the same way, or just use
+a tall `viewport` (e.g. `700x1900`) to see more at once.
+
+### testIDs
+
+Every interactive control has a `testID`. react-native-web maps
 `testID` straight to `data-testid` in the DOM, so target these with
 `sel=[data-testid="..."]` instead of matching label text — it's
 unambiguous and survives label text changes (e.g. the loop buttons
 relabel from `4 BEAT` to `1/2X` once a loop is active).
+
+**Deck controls** (there are two decks — every one of these testIDs is
+prefixed `deckA-` or `deckB-`, e.g. `deckA-play-button`,
+`deckB-hotcue-A`): `play-button`, `cue-button`, `search-back`,
+`search-forward`, `jog-wheel`, `tempo-fader-thumb`, `tempo-range`,
+`tempo-master`, `tempo-reset`, `hotcue-A`..`hotcue-H`, `loop-4beat`,
+`loop-8beat`, `loop-reloop-exit`, `beatjump-back`, `beatjump-forward`,
+`beatjump-count`, `mode-reverse`, `mode-slip`, `mode-vinyl`,
+`browse-prev`, `browse-next`, `browse-load`, `time-toggle`, `scroll`
+(the deck's own vertical ScrollView).
+
+**Mixer controls** (no per-instance prefix — there's only one mixer;
+channel ones are prefixed `mixer-ch1-` through `mixer-ch6-`): per
+channel — `trim`, `eq-hi`, `eq-himid`, `eq-lomid`, `eq-low`, `comp`,
+`fader`, `cue`, `assign` (a 3-way switch: `mixer-ch1-assign-A`,
+`-assign-thru`, `-assign-B`), `input`. Plus `mixer-crossfader`,
+`mixer-master-level`, `mixer-master-booth`, `mixer-master-isolator-on`,
+`mixer-master-iso-hi/-mid/-low`, `mixer-mic1-`/`mixer-mic2-` +
+`mode`/`level`/`eq-hi`/`eq-low`, `mixer-filter-mode`/`-freq`/
+`-resonance`, `mixer-sendfx-*`, `mixer-beatfx-effect`/`-assign`/
+`-onoff`, `mixer-scroll`.
+
+Only channels 1 and 2 are wired to a deck's play state (see below);
+channels 3–6 exist for visual completeness (real DJM-V10 has 6) but
+their VU meters stay dark since nothing is plugged into them.
+
+### Deck → mixer signal linkage (no real audio, but genuinely wired)
+
+There's no audio engine, but the mixer's VU meters are driven by real
+control state, not decoration: `hooks/useMixerState.js` computes each
+channel's level from `deck.isPlaying && !deck.isJogHeld` (channel 1 ←
+deck A, channel 2 ← deck B) combined with that channel's trim/EQ/fader
+and the crossfader position (channels default to crossfader-assign `A`
+/ `B` respectively). Master level is the sum of channel levels. This
+is a good target for a driver script: play a deck, confirm
+`mixer-ch1-fader`'s neighboring `VuMeter` lights up, drag
+`mixer-crossfader` toward B, confirm it goes dark again. Verified this
+exact sequence with screenshots while building the feature — it works.
 
 ## Run (human path)
 
@@ -120,13 +173,14 @@ bunx expo export --platform web && rm -rf dist
 
 ## Gotchas
 
-- **Emoji-glyph text collisions.** The transport play button's label
-  is `▶`, but the beat-jump-forward button is *also* `▶`, and the
-  search-forward button is `▶▶` (which text-contains `▶` too — the
-  driver's `click text=` uses exact match, so this only matters when
-  you use `getByText` yourself). `page.getByText('▶', { exact: true })`
-  alone resolves to 2 elements in this app; use `|nth=1` for the
-  transport play button, or — better — target `sel=[data-testid="play-button"]`.
+- **Emoji-glyph text collisions, worse with two decks.** Each deck's
+  transport play button label is `▶`, and each deck's beat-jump-forward
+  button is *also* `▶` — that's 4 elements with the exact text `▶` on
+  screen at once (2 decks × 2 controls), plus `▶▶` search-forward
+  buttons which contain `▶` as a substring. Don't use `click text=▶`
+  with an `nth` index and expect it to stay correct — DOM order is an
+  implementation detail. Always use `sel=[data-testid="deckA-play-button"]`
+  (or `deckB-`) instead.
 - **`press-hold` can't show a mid-gesture state.** It does
   down→wait→up as one atomic command, so a `screenshot` right after it
   always shows the *released* UI. To see the jog wheel's vinyl-brake

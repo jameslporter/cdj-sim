@@ -1,0 +1,91 @@
+import { useRef } from 'react';
+import { PanResponder, StyleSheet, View } from 'react-native';
+import { colors } from '../constants/theme';
+import { clamp } from '../utils/format';
+
+function valueToX(value, min, max, trackWidth, thumbWidth) {
+  return ((value - min) / (max - min)) * (trackWidth - thumbWidth);
+}
+
+function xToValue(x, min, max, trackWidth, thumbWidth) {
+  const ratio = x / (trackWidth - thumbWidth);
+  return clamp(min + ratio * (max - min), min, max);
+}
+
+export default function HorizontalFader({
+  value,
+  min,
+  max,
+  onChange,
+  trackWidth = 200,
+  trackHeight = 36,
+  thumbWidth = 28,
+  thumbHeight = 32,
+  centerTick = false,
+  accentColor = colors.accent,
+  testID,
+}) {
+  const startXRef = useRef(0);
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        startXRef.current = valueToX(valueRef.current, min, max, trackWidth, thumbWidth);
+      },
+      onPanResponderMove: (_evt, gesture) => {
+        const newX = clamp(startXRef.current + gesture.dx, 0, trackWidth - thumbWidth);
+        onChange(xToValue(newX, min, max, trackWidth, thumbWidth));
+      },
+    })
+  ).current;
+
+  const thumbX = valueToX(value, min, max, trackWidth, thumbWidth);
+
+  return (
+    <View style={[styles.track, { width: trackWidth, height: trackHeight }]}>
+      {centerTick ? <View style={[styles.centerTick, { height: trackHeight - 16 }]} /> : null}
+      <View
+        testID={testID}
+        style={[
+          styles.thumb,
+          { left: thumbX, width: thumbWidth, height: thumbHeight, borderColor: accentColor },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <View style={[styles.thumbLine, { backgroundColor: accentColor }]} />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  track: {
+    backgroundColor: '#151515',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    justifyContent: 'center',
+  },
+  centerTick: {
+    position: 'absolute',
+    left: '50%',
+    width: 2,
+    backgroundColor: '#3a3a3a',
+  },
+  thumb: {
+    position: 'absolute',
+    borderRadius: 4,
+    backgroundColor: '#3a3a3a',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbLine: {
+    width: 2,
+    height: '65%',
+  },
+});

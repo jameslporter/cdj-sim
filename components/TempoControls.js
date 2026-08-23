@@ -11,24 +11,25 @@ export default function TempoControls({
   onCycleRange,
   onToggleMasterTempo,
   onReset,
+  idPrefix = '',
 }) {
   return (
     <View style={styles.section}>
       <Text style={styles.label}>TEMPO</Text>
-      <TempoFader pitch={pitch} range={range} onChange={onPitchChange} />
+      <TempoFader pitch={pitch} range={range} onChange={onPitchChange} testID={`${idPrefix}tempo-fader-thumb`} />
       <Text style={styles.pitchValue}>
         {pitch > 0 ? '+' : ''}
         {pitch.toFixed(1)}%
       </Text>
       <CdjButton
-        testID="tempo-range"
+        testID={`${idPrefix}tempo-range`}
         label={range === 100 ? 'WIDE' : `±${range}`}
         sublabel="RANGE"
         onPress={onCycleRange}
         style={styles.smallButton}
       />
       <CdjButton
-        testID="tempo-master"
+        testID={`${idPrefix}tempo-master`}
         label="MT"
         sublabel="MASTER"
         active={masterTempo}
@@ -36,7 +37,7 @@ export default function TempoControls({
         style={styles.smallButton}
       />
       <CdjButton
-        testID="tempo-reset"
+        testID={`${idPrefix}tempo-reset`}
         label="RESET"
         onPress={onReset}
         style={styles.resetButton}

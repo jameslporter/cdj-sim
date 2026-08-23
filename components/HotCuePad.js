@@ -1,10 +1,10 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors } from '../constants/theme';
 
-export default function HotCuePad({ label, set, color, onPress, onLongPress }) {
+export default function HotCuePad({ label, set, color, onPress, onLongPress, testID }) {
   return (
     <Pressable
-      testID={`hotcue-${label}`}
+      testID={testID}
       style={({ pressed }) => [
         styles.pad,
         set && { backgroundColor: color, borderColor: color },

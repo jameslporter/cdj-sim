@@ -2,6 +2,7 @@
 // commands from stdin, drives a headless Chromium page via Playwright.
 //
 // Commands:
+//   viewport <width> <height>                  (resize before nav — must be the first command)
 //   nav <url>
 //   wait-for text=<text>[|nth=N]
 //   wait <ms>
@@ -75,7 +76,11 @@ async function run(line) {
   const [cmd, ...rest] = trimmed.split(' ');
   const arg = rest.join(' ');
 
-  if (cmd === 'nav') {
+  if (cmd === 'viewport') {
+    const [w, h] = arg.split(' ').map(Number);
+    await page.setViewportSize({ width: w, height: h });
+    console.log(`OK viewport ${arg}`);
+  } else if (cmd === 'nav') {
     await page.goto(arg, { waitUntil: 'networkidle', timeout: 30000 });
     console.log(`OK nav ${arg}`);
   } else if (cmd === 'wait-for') {

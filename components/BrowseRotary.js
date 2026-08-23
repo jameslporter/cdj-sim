@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 
-export default function BrowseRotary({ track, onPrev, onNext, onLoad }) {
+export default function BrowseRotary({ track, onPrev, onNext, onLoad, idPrefix = '' }) {
   return (
     <View style={styles.container}>
       <View style={styles.trackLabel}>
@@ -11,21 +11,21 @@ export default function BrowseRotary({ track, onPrev, onNext, onLoad }) {
       </View>
       <View style={styles.knobRow}>
         <Pressable
-          testID="browse-prev"
+          testID={`${idPrefix}browse-prev`}
           style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}
           onPress={onPrev}
         >
           <Text style={styles.arrowText}>▲</Text>
         </Pressable>
         <Pressable
-          testID="browse-load"
+          testID={`${idPrefix}browse-load`}
           style={({ pressed }) => [styles.knob, pressed && styles.pressed]}
           onPress={onLoad}
         >
           <Text style={styles.knobText}>LOAD</Text>
         </Pressable>
         <Pressable
-          testID="browse-next"
+          testID={`${idPrefix}browse-next`}
           style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}
           onPress={onNext}
         >

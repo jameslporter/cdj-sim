@@ -1,0 +1,76 @@
+import { StyleSheet, Text, View } from 'react-native';
+import { colors } from '../constants/theme';
+import HorizontalFader from './HorizontalFader';
+import MixerChannelStrip from './MixerChannelStrip';
+
+export default function MixerChannelBank({
+  channels,
+  channelLevels,
+  crossfader,
+  inputOptions,
+  linkedLabels,
+  onUpdateChannel,
+  onCycleInput,
+  onToggleCue,
+  onCrossfaderChange,
+}) {
+  return (
+    <View style={styles.bank}>
+      <View style={styles.row}>
+        {channels.map((channel, i) => (
+          <MixerChannelStrip
+            key={i}
+            channelNumber={i + 1}
+            channel={channel}
+            level={channelLevels[i]}
+            linked={Boolean(linkedLabels[i])}
+            deckLabel={linkedLabels[i]}
+            inputLabel={inputOptions[channel.inputIndex]}
+            onInputCycle={() => onCycleInput(i)}
+            onTrimChange={(v) => onUpdateChannel(i, { trim: v })}
+            onEqChange={(band, v) => onUpdateChannel(i, { [band]: v })}
+            onCompChange={(v) => onUpdateChannel(i, { comp: v })}
+            onFaderChange={(v) => onUpdateChannel(i, { fader: v })}
+            onAssignChange={(v) => onUpdateChannel(i, { assign: v })}
+            onToggleCue={() => onToggleCue(i)}
+            idPrefix={`mixer-ch${i + 1}-`}
+          />
+        ))}
+      </View>
+      <View style={styles.crossfaderRow}>
+        <Text style={styles.crossfaderLabel}>A</Text>
+        <HorizontalFader
+          testID="mixer-crossfader"
+          value={crossfader}
+          min={-1}
+          max={1}
+          trackWidth={340}
+          centerTick
+          onChange={onCrossfaderChange}
+        />
+        <Text style={styles.crossfaderLabel}>B</Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  bank: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  crossfaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  crossfaderLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+});

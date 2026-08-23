@@ -31,19 +31,19 @@ function SearchButton({ direction, onSeek, label, testID }) {
   );
 }
 
-export default function TransportControls({ isPlaying, onPlayPause, onCue, onSeek }) {
+export default function TransportControls({ isPlaying, onPlayPause, onCue, onSeek, idPrefix = '' }) {
   return (
     <View style={styles.row}>
-      <SearchButton direction={-1} label="◀◀" onSeek={onSeek} testID="search-back" />
+      <SearchButton direction={-1} label="◀◀" onSeek={onSeek} testID={`${idPrefix}search-back`} />
       <Pressable
-        testID="cue-button"
+        testID={`${idPrefix}cue-button`}
         style={({ pressed }) => [styles.cueButton, pressed && styles.pressed]}
         onPress={onCue}
       >
         <Text style={styles.cueButtonText}>CUE</Text>
       </Pressable>
       <Pressable
-        testID="play-button"
+        testID={`${idPrefix}play-button`}
         style={({ pressed }) => [
           styles.playButton,
           isPlaying && styles.playButtonActive,
@@ -53,7 +53,7 @@ export default function TransportControls({ isPlaying, onPlayPause, onCue, onSee
       >
         <Text style={styles.playButtonText}>{isPlaying ? '❚❚' : '▶'}</Text>
       </Pressable>
-      <SearchButton direction={1} label="▶▶" onSeek={onSeek} testID="search-forward" />
+      <SearchButton direction={1} label="▶▶" onSeek={onSeek} testID={`${idPrefix}search-forward`} />
     </View>
   );
 }

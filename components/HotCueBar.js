@@ -4,7 +4,7 @@ import HotCuePad from './HotCuePad';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-export default function HotCueBar({ cues, onPress, onLongPress }) {
+export default function HotCueBar({ cues, onPress, onLongPress, idPrefix = '' }) {
   return (
     <View style={styles.row}>
       {LABELS.map((label, i) => (
@@ -15,6 +15,7 @@ export default function HotCueBar({ cues, onPress, onLongPress }) {
           color={hotCueColors[i]}
           onPress={() => onPress(i)}
           onLongPress={() => onLongPress(i)}
+          testID={`${idPrefix}hotcue-${label}`}
         />
       ))}
     </View>

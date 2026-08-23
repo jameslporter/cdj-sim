@@ -8,11 +8,12 @@ export default function DeckModeControls({
   onToggleReverse,
   onToggleSlip,
   onToggleVinylMode,
+  idPrefix = '',
 }) {
   return (
     <View style={styles.row}>
       <CdjButton
-        testID="mode-reverse"
+        testID={`${idPrefix}mode-reverse`}
         label="REV"
         active={reverse}
         activeBg="#3a1f1f"
@@ -22,7 +23,7 @@ export default function DeckModeControls({
         style={styles.chip}
       />
       <CdjButton
-        testID="mode-slip"
+        testID={`${idPrefix}mode-slip`}
         label="SLIP"
         active={slip}
         activeBg="#1a2f57"
@@ -32,7 +33,7 @@ export default function DeckModeControls({
         style={styles.chip}
       />
       <CdjButton
-        testID="mode-vinyl"
+        testID={`${idPrefix}mode-vinyl`}
         label={vinylMode ? 'VINYL' : 'CDJ'}
         active={vinylMode}
         onPress={onToggleVinylMode}

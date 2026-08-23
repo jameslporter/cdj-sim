@@ -13,6 +13,7 @@ export default function TrackDisplay({
   onToggleTimeMode,
   progressRatio,
   loopRange,
+  idPrefix = '',
 }) {
   const timeValue = timeMode === 'REMAIN' ? duration - elapsed : elapsed;
   const timePrefix = timeMode === 'REMAIN' ? '-' : '';
@@ -37,7 +38,7 @@ export default function TrackDisplay({
           <Text style={styles.metricLabel}>KEY</Text>
           <Text style={styles.keyValue}>{track.key}</Text>
         </View>
-        <Pressable testID="time-toggle" style={styles.timeBlock} onPress={onToggleTimeMode}>
+        <Pressable testID={`${idPrefix}time-toggle`} style={styles.timeBlock} onPress={onToggleTimeMode}>
           <Text style={styles.metricLabel}>{timeMode}</Text>
           <Text style={styles.timeValue}>
             {timePrefix}

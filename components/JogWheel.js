@@ -4,7 +4,7 @@ import { colors } from '../constants/theme';
 
 const SIZE = 210;
 
-export default function JogWheel({ isPlaying, pitch, reverse, vinylMode, held, onHoldChange }) {
+export default function JogWheel({ isPlaying, pitch, reverse, vinylMode, held, onHoldChange, idPrefix = '' }) {
   const rotation = useRef(new Animated.Value(0)).current;
   const loopRef = useRef(null);
 
@@ -35,7 +35,7 @@ export default function JogWheel({ isPlaying, pitch, reverse, vinylMode, held, o
 
   return (
     <Pressable
-      testID="jog-wheel"
+      testID={`${idPrefix}jog-wheel`}
       style={styles.jogWheel}
       onPressIn={() => vinylMode && onHoldChange(true)}
       onPressOut={() => vinylMode && onHoldChange(false)}
