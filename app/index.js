@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -5,6 +6,7 @@ import CdjDeck from '../components/CdjDeck';
 import DjmMixer from '../components/DjmMixer';
 import useCdjDeck from '../hooks/useCdjDeck';
 import useMixerState from '../hooks/useMixerState';
+import { clamp } from '../utils/format';
 
 export default function CdjSimulator() {
   const deckA = useCdjDeck();
@@ -13,6 +15,20 @@ export default function CdjSimulator() {
     deckASignal: deckA.isPlaying && !deckA.isJogHeld,
     deckBSignal: deckB.isPlaying && !deckB.isJogHeld,
   });
+
+  // The mixer's channel 1 / channel 2 gain (trim, EQ, fader, crossfader) is
+  // the only thing standing between a deck and the speakers — apply it as
+  // real playback volume so the mixer is actually "in the signal path",
+  // not just a VU-meter display.
+  useEffect(() => {
+    deckA.setVolume(clamp(mixer.channelGains[0] * (0.3 + 1.1 * mixer.master.level), 0, 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mixer.channelGains[0], mixer.master.level]);
+
+  useEffect(() => {
+    deckB.setVolume(clamp(mixer.channelGains[1] * (0.3 + 1.1 * mixer.master.level), 0, 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mixer.channelGains[1], mixer.master.level]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

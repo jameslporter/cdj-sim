@@ -65,6 +65,15 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
 
   const deckSignals = [deckASignal ? 0.75 : 0, deckBSignal ? 0.75 : 0, 0, 0, 0, 0];
 
+  // Pure per-channel gain (trim/EQ/fader/crossfader only) — independent of
+  // whether the linked deck is actually playing. This is what should drive
+  // real playback volume; channelLevels (below) is the same thing but scaled
+  // by the deck's play signal, for the VU meters.
+  const channelGains = useMemo(
+    () => channels.map((ch) => clamp(channelGain(ch, crossfader), 0, 1)),
+    [channels, crossfader]
+  );
+
   const channelLevels = useMemo(
     () => channels.map((ch, i) => clamp(deckSignals[i] * channelGain(ch, crossfader), 0, 1)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,6 +94,7 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
     filter,
     sendFx,
     beatFx,
+    channelGains,
     channelLevels,
     masterLevel,
     inputOptions: INPUT_OPTIONS,

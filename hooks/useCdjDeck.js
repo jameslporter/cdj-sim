@@ -1,3 +1,4 @@
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useEffect, useState } from 'react';
 import { BEAT_JUMP_COUNTS, TEMPO_RANGES } from '../constants/theme';
 import { DEMO_TRACKS } from '../constants/tracks';
@@ -9,7 +10,6 @@ const EMPTY_LOOP = { active: false, start: null, end: null };
 export default function useCdjDeck() {
   const [trackIndex, setTrackIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
   const [phantomElapsed, setPhantomElapsed] = useState(0);
   const [cuePoint, setCuePoint] = useState(0);
   const [pitch, setPitch] = useState(0);
@@ -25,41 +25,48 @@ export default function useCdjDeck() {
   const [beatJumpCount, setBeatJumpCount] = useState(4);
 
   const track = DEMO_TRACKS[trackIndex];
-  const duration = track.duration;
-  const rate = (1 + pitch / 100) * (reverse ? -1 : 1);
-  const displayedBpm = track.bpm * (1 + pitch / 100);
+  const player = useAudioPlayer(track.file);
+  const status = useAudioPlayerStatus(player);
+
+  const elapsed = status.currentTime ?? 0;
+  const duration = (status.isLoaded && status.duration) || track.duration;
+  const audioRate = 1 + pitch / 100;
+  const rate = audioRate * (reverse ? -1 : 1);
+  const displayedBpm = track.bpm * audioRate;
   const beatDuration = 60 / displayedBpm;
+  const shouldPlay = isPlaying && !isJogHeld;
 
+  // Transport: actually start/stop the audio.
   useEffect(() => {
-    if (!isPlaying) return undefined;
-    const id = setInterval(() => {
-      setElapsed((prev) => {
-        if (isJogHeld) return prev;
-        let next = prev + 0.1 * rate;
-        if (loop.active && loop.start != null && loop.end != null) {
-          const len = loop.end - loop.start;
-          if (len > 0) {
-            if (rate >= 0 && next >= loop.end) {
-              next = loop.start + ((next - loop.end) % len);
-            } else if (rate < 0 && next <= loop.start) {
-              next = loop.end - ((loop.start - next) % len);
-            }
-          }
-        }
-        if (next >= duration) {
-          setIsPlaying(false);
-          return duration;
-        }
-        if (next <= 0) {
-          setIsPlaying(false);
-          return 0;
-        }
-        return next;
-      });
-    }, 100);
-    return () => clearInterval(id);
-  }, [isPlaying, rate, loop, isJogHeld, duration]);
+    if (shouldPlay) player.play();
+    else player.pause();
+  }, [shouldPlay, player]);
 
+  // Tempo fader / master tempo -> real playback rate + pitch-correction.
+  useEffect(() => {
+    player.shouldCorrectPitch = masterTempo;
+    player.setPlaybackRate(audioRate);
+  }, [audioRate, masterTempo, player]);
+
+  // Loop-window watch: seek back to the loop start once playback reaches loop end.
+  // (Real audio can't play backward, so this only handles the forward case —
+  // reverse + loop together only affects the phantom/visual math, not audible playback.)
+  useEffect(() => {
+    if (!loop.active || loop.start == null || loop.end == null) return;
+    if (elapsed >= loop.end) {
+      player.seekTo(loop.start).catch(() => {});
+    }
+  }, [elapsed, loop, player]);
+
+  // Detect natural end-of-track (the player stops itself; sync our isPlaying state).
+  useEffect(() => {
+    if (isPlaying && !status.playing && duration > 0 && elapsed >= duration - 0.15) {
+      setIsPlaying(false);
+    }
+  }, [isPlaying, status.playing, elapsed, duration]);
+
+  // Phantom clock for SLIP mode: a virtual, uninterrupted timeline that keeps
+  // advancing regardless of seeks/loops, so slip can restore "where you'd be".
   useEffect(() => {
     if (!isPlaying) return undefined;
     const id = setInterval(() => {
@@ -70,7 +77,7 @@ export default function useCdjDeck() {
 
   const resetDeckState = () => {
     setIsPlaying(false);
-    setElapsed(0);
+    player.seekTo(0).catch(() => {});
     setPhantomElapsed(0);
     setCuePoint(0);
     setHotCues(EMPTY_HOT_CUES);
@@ -82,7 +89,7 @@ export default function useCdjDeck() {
       if (prev) {
         setCuePoint(elapsed);
       } else if (elapsed >= duration) {
-        setElapsed(0);
+        player.seekTo(0).catch(() => {});
         setPhantomElapsed(0);
       }
       return !prev;
@@ -91,20 +98,21 @@ export default function useCdjDeck() {
 
   const handleCue = () => {
     setIsPlaying(false);
-    setElapsed(cuePoint);
+    player.seekTo(cuePoint).catch(() => {});
     setPhantomElapsed(cuePoint);
   };
 
   const handleSeek = (deltaSeconds) => {
-    setElapsed((prev) => clamp(prev + deltaSeconds, 0, duration));
-    setPhantomElapsed((prev) => clamp(prev + deltaSeconds, 0, duration));
+    const next = clamp(elapsed + deltaSeconds, 0, duration);
+    player.seekTo(next).catch(() => {});
+    setPhantomElapsed(next);
   };
 
   const handleHotCuePress = (i) => {
     const cue = hotCues[i];
     if (cue) {
       if (slip) return;
-      setElapsed(cue.time);
+      player.seekTo(cue.time).catch(() => {});
       setPhantomElapsed(cue.time);
       setIsPlaying(true);
     } else {
@@ -138,12 +146,12 @@ export default function useCdjDeck() {
     setLoop((prev) => {
       if (prev.active) {
         if (slip) {
-          setElapsed(phantomElapsed);
+          player.seekTo(phantomElapsed).catch(() => {});
         }
         return { ...prev, active: false };
       }
       if (prev.start != null) {
-        setElapsed(prev.start);
+        player.seekTo(prev.start).catch(() => {});
         setPhantomElapsed(prev.start);
         return { ...prev, active: true };
       }
@@ -157,8 +165,9 @@ export default function useCdjDeck() {
 
   const handleBeatJump = (dir) => {
     const delta = dir * beatJumpCount * beatDuration;
-    setElapsed((prev) => clamp(prev + delta, 0, duration));
-    setPhantomElapsed((prev) => clamp(prev + delta, 0, duration));
+    const next = clamp(elapsed + delta, 0, duration);
+    player.seekTo(next).catch(() => {});
+    setPhantomElapsed(next);
   };
 
   const handleCycleRange = () => {
@@ -171,7 +180,15 @@ export default function useCdjDeck() {
 
   const handleChangeTrack = (direction) => {
     setTrackIndex((i) => (i + direction + DEMO_TRACKS.length) % DEMO_TRACKS.length);
-    resetDeckState();
+    setIsPlaying(false);
+    setPhantomElapsed(0);
+    setCuePoint(0);
+    setHotCues(EMPTY_HOT_CUES);
+    setLoop(EMPTY_LOOP);
+  };
+
+  const setVolume = (v) => {
+    player.volume = clamp(v, 0, 1);
   };
 
   const progressRatio = elapsed / duration;
@@ -206,6 +223,7 @@ export default function useCdjDeck() {
     setSlip,
     setVinylMode,
     setMasterTempo,
+    setVolume,
     handlePlayPause,
     handleCue,
     handleSeek,

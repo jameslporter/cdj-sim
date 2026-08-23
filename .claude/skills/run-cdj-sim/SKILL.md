@@ -173,6 +173,19 @@ bunx expo export --platform web && rm -rf dist
 
 ## Gotchas
 
+- **Real audio plays now — but a headless browser can't "hear" it.**
+  Decks use `expo-audio` (`hooks/useCdjDeck.js`) to actually play the
+  bundled tracks in `assets/audio/`; the mixer's trim/EQ/fader/crossfader
+  math sets real `player.volume`, not just a VU-meter display. There's
+  no `<audio>` DOM element to poke — expo-audio's web backend doesn't
+  render one (confirmed via `eval document.querySelectorAll('audio')`,
+  which returns `[]` even mid-playback). Verify real playback instead
+  by reading the elapsed-time text after pressing play and waiting —
+  `eval document.querySelector('[data-testid="deckA-time-toggle"]').innerText`
+  before and after a `wait 2000` should show the seconds actually
+  advancing (proof the file decoded and is playing, not just that the UI
+  animated). The same readout freezes during a jog-wheel `down` hold and
+  resumes on `up` — good regression check for the vinyl-brake pause path.
 - **Emoji-glyph text collisions, worse with two decks.** Each deck's
   transport play button label is `▶`, and each deck's beat-jump-forward
   button is *also* `▶` — that's 4 elements with the exact text `▶` on
