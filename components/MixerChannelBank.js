@@ -20,19 +20,16 @@ export default function MixerChannelBank({
         {channels.map((channel, i) => (
           <MixerChannelStrip
             key={i}
+            index={i}
             channelNumber={i + 1}
             channel={channel}
             level={channelLevels[i]}
             linked={Boolean(linkedLabels[i])}
             deckLabel={linkedLabels[i]}
             inputLabel={inputOptions[channel.inputIndex]}
-            onInputCycle={() => onCycleInput(i)}
-            onTrimChange={(v) => onUpdateChannel(i, { trim: v })}
-            onEqChange={(band, v) => onUpdateChannel(i, { [band]: v })}
-            onCompChange={(v) => onUpdateChannel(i, { comp: v })}
-            onFaderChange={(v) => onUpdateChannel(i, { fader: v })}
-            onAssignChange={(v) => onUpdateChannel(i, { assign: v })}
-            onToggleCue={() => onToggleCue(i)}
+            onUpdateChannel={onUpdateChannel}
+            onCycleInput={onCycleInput}
+            onToggleCue={onToggleCue}
             idPrefix={`mixer-ch${i + 1}-`}
           />
         ))}
@@ -61,7 +58,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 40,
   },
   crossfaderRow: {
     flexDirection: 'row',

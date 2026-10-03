@@ -25,3 +25,15 @@ export const DEMO_TRACKS = [
     file: require('../assets/audio/neon-laser-horizon.mp3'),
   },
 ];
+
+// A simulated USB drive's root listing, as the CDJ's BROWSE screen would show
+// it — rekordbox-exported USB drives put every track under a "Contents"
+// folder at the root, which is what we mirror here.
+export const USB_LIBRARY = [
+  {
+    type: 'folder',
+    name: 'Contents',
+    children: DEMO_TRACKS.map((_, i) => ({ type: 'track', trackIndex: i })),
+  },
+];
+

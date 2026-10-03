@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 
-export default function ThreeWaySwitch({ options, value, onChange, vertical = false, testID }) {
+function ThreeWaySwitch({ options, value, onChange, vertical = false, testID }) {
   return (
     <View style={vertical ? styles.columnGroup : styles.rowGroup}>
       {options.map((opt) => {
@@ -20,6 +21,8 @@ export default function ThreeWaySwitch({ options, value, onChange, vertical = fa
     </View>
   );
 }
+
+export default memo(ThreeWaySwitch);
 
 const styles = StyleSheet.create({
   rowGroup: {

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { PanResponder, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 import { clamp } from '../utils/format';
@@ -7,7 +7,7 @@ const SWEEP_DEG = 270;
 const START_DEG = -135;
 const DRAG_RANGE_PX = 150;
 
-export default function Knob({
+function Knob({
   value,
   min = 0,
   max = 1,
@@ -51,6 +51,8 @@ export default function Knob({
     </View>
   );
 }
+
+export default memo(Knob);
 
 const styles = StyleSheet.create({
   wrap: {

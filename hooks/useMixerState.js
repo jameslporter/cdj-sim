@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { clamp } from '../utils/format';
 
 const INPUT_OPTIONS = ['DIGITAL', 'LINE', 'PHONO', 'MULTI I/O'];
 export const BEAT_FX_NAMES = ['ECHO', 'DELAY', 'SPIRAL', 'REVERB', 'FLANGER', 'FILTER', 'TRANS', 'ROLL'];
-export const BEAT_FX_ASSIGNS = ['CH1', 'CH2', 'CH3', 'CH4', 'CH5', 'CH6', 'MASTER'];
+export const BEAT_FX_ASSIGNS = ['CH1', 'CH2', 'MASTER'];
 export const SEND_SOURCES = ['BUILT-IN', 'EXT1', 'EXT2'];
 
 function makeChannel(index) {
@@ -14,8 +14,8 @@ function makeChannel(index) {
     eqLoMid: 0.5,
     eqLow: 0.5,
     comp: 0,
-    fader: index < 2 ? 0.85 : 0.7,
-    assign: index === 0 ? 'A' : index === 1 ? 'B' : 'thru',
+    fader: 0.85,
+    assign: index === 0 ? 'A' : 'B',
     inputIndex: 0,
     cue: false,
   };
@@ -32,7 +32,7 @@ function channelGain(channel, crossfader) {
 }
 
 export default function useMixerState({ deckASignal, deckBSignal }) {
-  const [channels, setChannels] = useState(() => Array.from({ length: 6 }, (_, i) => makeChannel(i)));
+  const [channels, setChannels] = useState(() => Array.from({ length: 2 }, (_, i) => makeChannel(i)));
   const [crossfader, setCrossfader] = useState(0);
   const [master, setMaster] = useState({ level: 0.75, booth: 0.5, isolatorOn: false, isoHi: 0.5, isoMid: 0.5, isoLow: 0.5 });
   const [mic1, setMic1] = useState({ mode: 'off', level: 0.5, eqHi: 0.5, eqLow: 0.5 });
@@ -49,21 +49,26 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
   });
   const [beatFx, setBeatFx] = useState({ assign: 'CH1', on: false, effectIndex: 0 });
 
-  const updateChannel = (index, patch) => {
+  // useCallback with an empty dep array (all use the functional setState
+  // form, so they never need to close over current state) keeps these
+  // referentially stable across renders — required for React.memo on the
+  // mixer's section components to actually skip re-rendering when unrelated
+  // state (e.g. the crossfader) changes.
+  const updateChannel = useCallback((index, patch) => {
     setChannels((prev) => prev.map((ch, i) => (i === index ? { ...ch, ...patch } : ch)));
-  };
+  }, []);
 
-  const cycleChannelInput = (index) => {
+  const cycleChannelInput = useCallback((index) => {
     setChannels((prev) =>
       prev.map((ch, i) => (i === index ? { ...ch, inputIndex: (ch.inputIndex + 1) % INPUT_OPTIONS.length } : ch))
     );
-  };
+  }, []);
 
-  const toggleChannelCue = (index) => {
+  const toggleChannelCue = useCallback((index) => {
     setChannels((prev) => prev.map((ch, i) => (i === index ? { ...ch, cue: !ch.cue } : ch)));
-  };
+  }, []);
 
-  const deckSignals = [deckASignal ? 0.75 : 0, deckBSignal ? 0.75 : 0, 0, 0, 0, 0];
+  const deckSignals = [deckASignal ? 0.75 : 0, deckBSignal ? 0.75 : 0];
 
   // Pure per-channel gain (trim/EQ/fader/crossfader only) — independent of
   // whether the linked deck is actually playing. This is what should drive

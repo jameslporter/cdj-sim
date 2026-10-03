@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 import MixerBeatFxSection from './MixerBeatFxSection';
@@ -7,8 +8,20 @@ import MixerMasterSection from './MixerMasterSection';
 import MixerMicSection from './MixerMicSection';
 import MixerSendFxSection from './MixerSendFxSection';
 
+const LINKED_LABELS = ['DECK A', 'DECK B'];
+
 export default function DjmMixer({ mixer }) {
-  const linkedLabels = ['DECK A', 'DECK B', null, null, null, null];
+  // Stable wrappers around the (always-stable) useState setters. Without
+  // these, every section below would get a brand-new onChange prop on every
+  // DjmMixer render — including ones triggered by unrelated state like the
+  // crossfader — which defeats React.memo on those sections entirely.
+  const { setMic1, setMic2, setFilter, setSendFx, setMaster, setBeatFx } = mixer;
+  const handleChangeMic1 = useCallback((patch) => setMic1((m) => ({ ...m, ...patch })), [setMic1]);
+  const handleChangeMic2 = useCallback((patch) => setMic2((m) => ({ ...m, ...patch })), [setMic2]);
+  const handleChangeFilter = useCallback((patch) => setFilter((f) => ({ ...f, ...patch })), [setFilter]);
+  const handleChangeSendFx = useCallback((patch) => setSendFx((s) => ({ ...s, ...patch })), [setSendFx]);
+  const handleChangeMaster = useCallback((patch) => setMaster((m) => ({ ...m, ...patch })), [setMaster]);
+  const handleChangeBeatFx = useCallback((patch) => setBeatFx((b) => ({ ...b, ...patch })), [setBeatFx]);
 
   return (
     <View style={styles.column}>
@@ -21,14 +34,11 @@ export default function DjmMixer({ mixer }) {
           <MixerMicSection
             mic1={mixer.mic1}
             mic2={mixer.mic2}
-            onChangeMic1={(patch) => mixer.setMic1((m) => ({ ...m, ...patch }))}
-            onChangeMic2={(patch) => mixer.setMic2((m) => ({ ...m, ...patch }))}
+            onChangeMic1={handleChangeMic1}
+            onChangeMic2={handleChangeMic2}
           />
-          <MixerFilterSection filter={mixer.filter} onChange={(patch) => mixer.setFilter((f) => ({ ...f, ...patch }))} />
-          <MixerSendFxSection
-            sendFx={mixer.sendFx}
-            onChange={(patch) => mixer.setSendFx((s) => ({ ...s, ...patch }))}
-          />
+          <MixerFilterSection filter={mixer.filter} onChange={handleChangeFilter} />
+          <MixerSendFxSection sendFx={mixer.sendFx} onChange={handleChangeSendFx} />
         </View>
 
         <MixerChannelBank
@@ -36,7 +46,7 @@ export default function DjmMixer({ mixer }) {
           channelLevels={mixer.channelLevels}
           crossfader={mixer.crossfader}
           inputOptions={mixer.inputOptions}
-          linkedLabels={linkedLabels}
+          linkedLabels={LINKED_LABELS}
           onUpdateChannel={mixer.updateChannel}
           onCycleInput={mixer.cycleChannelInput}
           onToggleCue={mixer.toggleChannelCue}
@@ -44,12 +54,8 @@ export default function DjmMixer({ mixer }) {
         />
 
         <View style={styles.sectionsRow}>
-          <MixerMasterSection
-            master={mixer.master}
-            masterLevel={mixer.masterLevel}
-            onChange={(patch) => mixer.setMaster((m) => ({ ...m, ...patch }))}
-          />
-          <MixerBeatFxSection beatFx={mixer.beatFx} onChange={(patch) => mixer.setBeatFx((b) => ({ ...b, ...patch }))} />
+          <MixerMasterSection master={mixer.master} masterLevel={mixer.masterLevel} onChange={handleChangeMaster} />
+          <MixerBeatFxSection beatFx={mixer.beatFx} onChange={handleChangeBeatFx} />
         </View>
       </ScrollView>
     </View>
@@ -58,7 +64,7 @@ export default function DjmMixer({ mixer }) {
 
 const styles = StyleSheet.create({
   column: {
-    width: 620,
+    width: 480,
     flexShrink: 0,
   },
   scroll: {

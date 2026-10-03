@@ -30,15 +30,16 @@ export default function TempoControls({
       />
       <CdjButton
         testID={`${idPrefix}tempo-master`}
-        label="MT"
-        sublabel="MASTER"
+        label="MASTER"
+        sublabel="TEMPO"
         active={masterTempo}
         onPress={onToggleMasterTempo}
         style={styles.smallButton}
       />
       <CdjButton
         testID={`${idPrefix}tempo-reset`}
-        label="RESET"
+        label="TEMPO"
+        sublabel="RESET"
         onPress={onReset}
         style={styles.resetButton}
         textColor={colors.textMuted}

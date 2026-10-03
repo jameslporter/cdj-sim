@@ -1,9 +1,34 @@
 import { StyleSheet, View } from 'react-native';
 import CdjButton from './CdjButton';
 
-export default function LoopControls({ active, hasLoop, onFourBeat, onEightBeat, onReloopExit, idPrefix = '' }) {
+export default function LoopControls({
+  active,
+  hasLoop,
+  hasLoopStart,
+  onLoopIn,
+  onLoopOut,
+  onFourBeat,
+  onEightBeat,
+  onReloopExit,
+  idPrefix = '',
+}) {
   return (
     <View style={styles.group}>
+      <CdjButton
+        testID={`${idPrefix}loop-in`}
+        label={hasLoopStart ? 'IN ADJUST' : 'IN/CUE'}
+        sublabel="LOOP"
+        onPress={onLoopIn}
+        style={styles.button}
+      />
+      <CdjButton
+        testID={`${idPrefix}loop-out`}
+        label={active ? 'OUT ADJUST' : 'OUT'}
+        sublabel="LOOP"
+        disabled={!hasLoopStart}
+        onPress={onLoopOut}
+        style={styles.button}
+      />
       <CdjButton
         testID={`${idPrefix}loop-4beat`}
         label={active ? '1/2X' : '4 BEAT'}
@@ -44,6 +69,7 @@ export default function LoopControls({ active, hasLoop, onFourBeat, onEightBeat,
 const styles = StyleSheet.create({
   group: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   button: {

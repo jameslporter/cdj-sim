@@ -1,22 +1,25 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { clamp } from '../utils/format';
 
 const SEGMENTS = 14;
 
-export default function VuMeter({ level, height = 120, width = 10 }) {
+function VuMeter({ level, height = 120, width = 10 }) {
   const [displayLevel, setDisplayLevel] = useState(0);
+  const levelRef = useRef(level);
+  levelRef.current = level;
 
+  // One interval for the component's whole lifetime — restarting this on every
+  // `level` change (which happens on every pixel of a fader/crossfader drag)
+  // meant up to 4 VU meters were tearing down and recreating a timer per
+  // pointer-move event, which is what made drags feel less smooth over time.
   useEffect(() => {
-    if (level <= 0) {
-      setDisplayLevel(0);
-      return undefined;
-    }
     const id = setInterval(() => {
-      setDisplayLevel(clamp(level + (Math.random() - 0.5) * 0.12, 0, 1));
+      const current = levelRef.current;
+      setDisplayLevel(current <= 0 ? 0 : clamp(current + (Math.random() - 0.5) * 0.12, 0, 1));
     }, 120);
     return () => clearInterval(id);
-  }, [level]);
+  }, []);
 
   const litCount = Math.round(displayLevel * SEGMENTS);
   const segmentHeight = (height - (SEGMENTS - 1) * 2) / SEGMENTS;
@@ -36,6 +39,8 @@ export default function VuMeter({ level, height = 120, width = 10 }) {
     </View>
   );
 }
+
+export default memo(VuMeter);
 
 const styles = StyleSheet.create({
   column: {

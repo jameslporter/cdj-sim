@@ -1,12 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 
-export default function BrowseRotary({ track, onPrev, onNext, onLoad, idPrefix = '' }) {
+export default function BrowseRotary({ label, onPrev, onNext, onLoad, idPrefix = '' }) {
   return (
     <View style={styles.container}>
       <View style={styles.trackLabel}>
         <Text style={styles.trackText} numberOfLines={1}>
-          {track.title}
+          {label}
         </Text>
       </View>
       <View style={styles.knobRow}>

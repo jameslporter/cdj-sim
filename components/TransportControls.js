@@ -27,6 +27,7 @@ function SearchButton({ direction, onSeek, label, testID }) {
       onPressOut={stop}
     >
       <Text style={styles.searchButtonText}>{label}</Text>
+      <Text style={styles.searchCaption}>SEARCH</Text>
     </Pressable>
   );
 }
@@ -77,6 +78,12 @@ const styles = StyleSheet.create({
   searchButtonText: {
     color: colors.textMuted,
     fontSize: 14,
+  },
+  searchCaption: {
+    color: colors.textMuted,
+    fontSize: 6,
+    fontWeight: '700',
+    marginTop: 2,
   },
   cueButton: {
     width: 66,

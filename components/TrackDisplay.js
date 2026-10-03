@@ -44,6 +44,7 @@ export default function TrackDisplay({
             {timePrefix}
             {formatTime(timeValue)}
           </Text>
+          <Text style={styles.timeModeCaption}>TIME MODE/AUTO CUE</Text>
         </Pressable>
         <View>
           <Text style={styles.metricLabel}>TEMPO</Text>
@@ -111,6 +112,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontVariant: ['tabular-nums'],
     fontWeight: '700',
+  },
+  timeModeCaption: {
+    color: colors.textMuted,
+    fontSize: 6,
+    fontWeight: '700',
+    marginTop: 2,
   },
   pitchValue: {
     fontSize: 20,

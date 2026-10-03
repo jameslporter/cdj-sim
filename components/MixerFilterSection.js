@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 import Knob from './Knob';
@@ -9,7 +10,7 @@ const MODE_OPTIONS = [
   { value: 'hpf', label: 'HPF' },
 ];
 
-export default function MixerFilterSection({ filter, onChange }) {
+function MixerFilterSection({ filter, onChange }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>FILTER</Text>
@@ -29,6 +30,8 @@ export default function MixerFilterSection({ filter, onChange }) {
     </View>
   );
 }
+
+export default memo(MixerFilterSection);
 
 const styles = StyleSheet.create({
   section: {

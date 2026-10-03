@@ -1,6 +1,7 @@
+import { memo } from 'react';
 import { View } from 'react-native';
 
-export default function Led({ on, color = '#4fd87a', size = 8, style }) {
+function Led({ on, color = '#4fd87a', size = 8, style }) {
   return (
     <View
       style={[
@@ -17,3 +18,5 @@ export default function Led({ on, color = '#4fd87a', size = 8, style }) {
     />
   );
 }
+
+export default memo(Led);

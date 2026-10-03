@@ -1,9 +1,10 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { BEAT_FX_ASSIGNS, BEAT_FX_NAMES } from '../hooks/useMixerState';
 import { colors } from '../constants/theme';
 import CdjButton from './CdjButton';
 
-export default function MixerBeatFxSection({ beatFx, onChange }) {
+function MixerBeatFxSection({ beatFx, onChange }) {
   const cycleAssign = () => {
     const next = BEAT_FX_ASSIGNS[(BEAT_FX_ASSIGNS.indexOf(beatFx.assign) + 1) % BEAT_FX_ASSIGNS.length];
     onChange({ assign: next });
@@ -43,6 +44,8 @@ export default function MixerBeatFxSection({ beatFx, onChange }) {
     </View>
   );
 }
+
+export default memo(MixerBeatFxSection);
 
 const styles = StyleSheet.create({
   section: {

@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 import CdjButton from './CdjButton';
 import Knob from './Knob';
 import VuMeter from './VuMeter';
 
-export default function MixerMasterSection({ master, masterLevel, onChange }) {
+function MixerMasterSection({ master, masterLevel, onChange }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>MASTER</Text>
@@ -46,6 +47,8 @@ export default function MixerMasterSection({ master, masterLevel, onChange }) {
     </View>
   );
 }
+
+export default memo(MixerMasterSection);
 
 const styles = StyleSheet.create({
   section: {

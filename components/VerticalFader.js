@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import { colors } from '../constants/theme';
 import { clamp } from '../utils/format';
@@ -12,7 +12,7 @@ function yToValue(y, min, max, trackHeight, thumbHeight) {
   return clamp(max - ratio * (max - min), min, max);
 }
 
-export default function VerticalFader({
+function VerticalFader({
   value,
   min,
   max,
@@ -64,6 +64,8 @@ export default function VerticalFader({
     </View>
   );
 }
+
+export default memo(VerticalFader);
 
 const styles = StyleSheet.create({
   track: {

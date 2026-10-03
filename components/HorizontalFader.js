@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import { colors } from '../constants/theme';
 import { clamp } from '../utils/format';
@@ -12,7 +12,7 @@ function xToValue(x, min, max, trackWidth, thumbWidth) {
   return clamp(min + ratio * (max - min), min, max);
 }
 
-export default function HorizontalFader({
+function HorizontalFader({
   value,
   min,
   max,
@@ -26,6 +26,7 @@ export default function HorizontalFader({
   testID,
 }) {
   const startXRef = useRef(0);
+  const startPageXRef = useRef(0);
   const valueRef = useRef(value);
   valueRef.current = value;
 
@@ -33,11 +34,16 @@ export default function HorizontalFader({
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
+      onPanResponderGrant: (evt) => {
         startXRef.current = valueToX(valueRef.current, min, max, trackWidth, thumbWidth);
+        startPageXRef.current = evt.nativeEvent.pageX;
       },
-      onPanResponderMove: (_evt, gesture) => {
-        const newX = clamp(startXRef.current + gesture.dx, 0, trackWidth - thumbWidth);
+      // Computed from the raw event's pageX rather than gestureState.dx, as a
+      // defensive measure against relying on react-native-web's own delta
+      // tracking during rapid successive gestures.
+      onPanResponderMove: (evt) => {
+        const dx = evt.nativeEvent.pageX - startPageXRef.current;
+        const newX = clamp(startXRef.current + dx, 0, trackWidth - thumbWidth);
         onChange(xToValue(newX, min, max, trackWidth, thumbWidth));
       },
     })
@@ -61,6 +67,8 @@ export default function HorizontalFader({
     </View>
   );
 }
+
+export default memo(HorizontalFader);
 
 const styles = StyleSheet.create({
   track: {

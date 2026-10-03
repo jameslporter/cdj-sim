@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors } from '../constants/theme';
 
-export default function CdjButton({
+function CdjButton({
   label,
   sublabel,
   onPress,
@@ -46,6 +47,8 @@ export default function CdjButton({
     </Pressable>
   );
 }
+
+export default memo(CdjButton);
 
 const styles = StyleSheet.create({
   button: {

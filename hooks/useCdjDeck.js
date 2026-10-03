@@ -23,6 +23,9 @@ export default function useCdjDeck() {
   const [hotCues, setHotCues] = useState(EMPTY_HOT_CUES);
   const [loop, setLoop] = useState(EMPTY_LOOP);
   const [beatJumpCount, setBeatJumpCount] = useState(4);
+  const [quantize, setQuantize] = useState(true);
+  const [memoryCues, setMemoryCues] = useState([]);
+  const [memoryCueIndex, setMemoryCueIndex] = useState(-1);
 
   const track = DEMO_TRACKS[trackIndex];
   const player = useAudioPlayer(track.file);
@@ -35,6 +38,8 @@ export default function useCdjDeck() {
   const displayedBpm = track.bpm * audioRate;
   const beatDuration = 60 / displayedBpm;
   const shouldPlay = isPlaying && !isJogHeld;
+
+  const quantizeTime = (t) => (quantize ? Math.round(t / beatDuration) * beatDuration : t);
 
   // Transport: actually start/stop the audio.
   useEffect(() => {
@@ -117,7 +122,7 @@ export default function useCdjDeck() {
       setIsPlaying(true);
     } else {
       const next = [...hotCues];
-      next[i] = { time: elapsed };
+      next[i] = { time: quantizeTime(elapsed) };
       setHotCues(next);
     }
   };
@@ -131,7 +136,7 @@ export default function useCdjDeck() {
   const handleLoopButton = (size) => {
     setLoop((prev) => {
       if (!prev.active) {
-        const start = elapsed;
+        const start = quantizeTime(elapsed);
         const end = clamp(start + size * beatDuration, start, duration);
         return { active: true, start, end };
       }
@@ -139,6 +144,19 @@ export default function useCdjDeck() {
       const newLen =
         size === 4 ? Math.max(beatDuration / 4, len / 2) : Math.min(duration - prev.start, len * 2);
       return { ...prev, end: prev.start + newLen };
+    });
+  };
+
+  const handleLoopIn = () => {
+    const start = quantizeTime(elapsed);
+    player.seekTo(start).catch(() => {});
+    setLoop({ active: false, start, end: null });
+  };
+
+  const handleLoopOut = () => {
+    setLoop((prev) => {
+      if (prev.start == null || elapsed <= prev.start) return prev;
+      return { active: true, start: prev.start, end: quantizeTime(elapsed) };
     });
   };
 
@@ -178,13 +196,45 @@ export default function useCdjDeck() {
     });
   };
 
-  const handleChangeTrack = (direction) => {
-    setTrackIndex((i) => (i + direction + DEMO_TRACKS.length) % DEMO_TRACKS.length);
+  const handleLoadTrack = (index) => {
+    setTrackIndex(index);
     setIsPlaying(false);
     setPhantomElapsed(0);
     setCuePoint(0);
     setHotCues(EMPTY_HOT_CUES);
     setLoop(EMPTY_LOOP);
+    setMemoryCues([]);
+    setMemoryCueIndex(-1);
+  };
+
+  const handleChangeTrack = (direction) => {
+    handleLoadTrack((trackIndex + direction + DEMO_TRACKS.length) % DEMO_TRACKS.length);
+  };
+
+  // MEMORY / CUE·LOOP CALL / DELETE: a second, separate cue-point system from
+  // the 8 Hot Cue pads — memory cues are auto-numbered in track order and
+  // stepped through with CUE/LOOP CALL rather than pressed directly.
+  const handleMemorySave = () => {
+    const time = quantizeTime(elapsed);
+    setMemoryCues((prev) => {
+      const next = [...prev, { time }].sort((a, b) => a.time - b.time);
+      setMemoryCueIndex(next.findIndex((c) => c.time === time));
+      return next;
+    });
+  };
+
+  const handleMemoryCall = (dir) => {
+    if (memoryCues.length === 0) return;
+    const nextIndex = clamp(memoryCueIndex + dir, 0, memoryCues.length - 1);
+    setMemoryCueIndex(nextIndex);
+    player.seekTo(memoryCues[nextIndex].time).catch(() => {});
+    setPhantomElapsed(memoryCues[nextIndex].time);
+  };
+
+  const handleMemoryDelete = () => {
+    if (memoryCueIndex < 0) return;
+    setMemoryCues((prev) => prev.filter((_, i) => i !== memoryCueIndex));
+    setMemoryCueIndex((i) => clamp(i - 1, -1, memoryCues.length - 2));
   };
 
   const setVolume = (v) => {
@@ -213,6 +263,9 @@ export default function useCdjDeck() {
     hotCues,
     loop,
     beatJumpCount,
+    quantize,
+    memoryCues,
+    memoryCueIndex,
     displayedBpm,
     progressRatio,
     loopRange,
@@ -223,6 +276,7 @@ export default function useCdjDeck() {
     setSlip,
     setVinylMode,
     setMasterTempo,
+    setQuantize,
     setVolume,
     handlePlayPause,
     handleCue,
@@ -230,11 +284,17 @@ export default function useCdjDeck() {
     handleHotCuePress,
     handleHotCueLongPress,
     handleLoopButton,
+    handleLoopIn,
+    handleLoopOut,
     handleReloopExit,
     handleCycleBeatCount,
     handleBeatJump,
     handleCycleRange,
     handleChangeTrack,
+    handleLoadTrack,
+    handleMemorySave,
+    handleMemoryCall,
+    handleMemoryDelete,
     resetDeckState,
   };
 }

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 import Knob from './Knob';
@@ -27,7 +28,7 @@ function MicChannel({ label, mic, onChange, idPrefix }) {
   );
 }
 
-export default function MixerMicSection({ mic1, mic2, onChangeMic1, onChangeMic2 }) {
+function MixerMicSection({ mic1, mic2, onChangeMic1, onChangeMic2 }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>MIC</Text>
@@ -38,6 +39,8 @@ export default function MixerMicSection({ mic1, mic2, onChangeMic1, onChangeMic2
     </View>
   );
 }
+
+export default memo(MixerMicSection);
 
 const styles = StyleSheet.create({
   section: {

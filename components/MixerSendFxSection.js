@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 import CdjButton from './CdjButton';
@@ -10,7 +11,7 @@ const SOURCE_OPTIONS = [
   { value: 'EXT2', label: 'EXT2' },
 ];
 
-export default function MixerSendFxSection({ sendFx, onChange }) {
+function MixerSendFxSection({ sendFx, onChange }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>SEND / FX</Text>
@@ -45,6 +46,8 @@ export default function MixerSendFxSection({ sendFx, onChange }) {
     </View>
   );
 }
+
+export default memo(MixerSendFxSection);
 
 const styles = StyleSheet.create({
   section: {
