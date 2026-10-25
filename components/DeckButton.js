@@ -19,6 +19,7 @@ function DeckButton({
   sublabel,
   onPress,
   onLongPress,
+  delayLongPress,
   onPressIn,
   onPressOut,
   active,
@@ -26,6 +27,7 @@ function DeckButton({
   disabled,
   style,
   labelStyle,
+  sublabelStyle,
   children,
   testID,
 }) {
@@ -38,6 +40,7 @@ function DeckButton({
       testID={testID}
       onPress={onPress}
       onLongPress={onLongPress}
+      delayLongPress={delayLongPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       disabled={disabled}
@@ -56,7 +59,7 @@ function DeckButton({
       {children ?? (
         <>
           <Text style={[styles.label, active && { color: ledColor }, labelStyle]}>{label}</Text>
-          {sublabel ? <Text style={[styles.sublabel, active && { color: `${ledColor}aa` }]}>{sublabel}</Text> : null}
+          {sublabel ? <Text style={[styles.sublabel, active && { color: `${ledColor}aa` }, sublabelStyle]}>{sublabel}</Text> : null}
         </>
       )}
     </Pressable>

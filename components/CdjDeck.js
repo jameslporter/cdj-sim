@@ -64,7 +64,7 @@ function importSummary(result) {
 
 const LIST_SCREENS = ['BROWSE', 'PLAYLIST'];
 
-export default function CdjDeck({ deck, library, label, idPrefix }) {
+export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
   const { preview } = deck;
   const bank = usePlaylistBank(`cdj-sim:playlist-bank:${idPrefix}`);
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
@@ -301,7 +301,18 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                     <TrackDisplay
                       track={deck.track}
                       bpm={deck.displayedBpm.toFixed(2)}
-                      pitch={deck.pitch}
+                      pitch={deck.effectivePitch}
+                      synced={deck.synced}
+                      syncOn={sync.syncOn}
+                      isMaster={sync.isMaster}
+                      isPlaying={deck.isPlaying}
+                      getPosition={deck.getPosition}
+                      getMasterBeatPos={sync.getMasterBeatPos}
+                      memoryCues={deck.memoryCues}
+                      tempoReset={deck.tempoReset}
+                      autoCue={deck.autoCue}
+                      beatJumpCount={deck.beatJumpCount}
+                      onSetBeatJumpCount={deck.handleSetBeatJumpCount}
                       pitchRange={deck.pitchRange}
                       masterTempo={deck.masterTempo}
                       quantize={deck.quantize}
@@ -358,6 +369,8 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                   label="TIME MODE"
                   sublabel="AUTO CUE"
                   onPress={toggleTimeMode}
+                  onLongPress={deck.toggleAutoCue}
+                  delayLongPress={700}
                   style={styles.utilButton}
                 />
                 <DeckButton
@@ -374,7 +387,10 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 memoryCueIndex={deck.memoryCueIndex}
                 onSave={deck.handleMemorySave}
                 onCall={deck.handleMemoryCall}
-                onDelete={deck.handleMemoryDelete}
+                deleteHeld={deck.deleteHeld}
+                onDeletePressIn={deck.handleDeletePressIn}
+                onDeletePressOut={deck.handleDeletePressOut}
+                onDeleteClick={deck.handleDeleteClick}
                 idPrefix={idPrefix}
               />
             </View>
@@ -386,7 +402,6 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 onPress={deck.handleHotCuePress}
                 onPressIn={deck.handleHotCuePressIn}
                 onPressOut={deck.handleHotCuePressOut}
-                onLongPress={deck.handleHotCueLongPress}
                 idPrefix={idPrefix}
               />
             </View>
@@ -404,8 +419,6 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 idPrefix={idPrefix}
               />
               <BeatJumpControls
-                beatCount={deck.beatJumpCount}
-                onCycleCount={deck.handleCycleBeatCount}
                 onBack={() => deck.handleBeatJump(-1)}
                 onForward={() => deck.handleBeatJump(1)}
                 idPrefix={idPrefix}
@@ -440,7 +453,9 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 <TransportControls
                   isPlaying={deck.isPlaying}
                   onPlayPause={deck.handlePlayPause}
-                  onCue={deck.handleCue}
+                  atCue={deck.atCue}
+                  onCuePressIn={deck.handleCuePressIn}
+                  onCuePressOut={deck.handleCuePressOut}
                   onSeek={deck.handleSeek}
                   idPrefix={idPrefix}
                 />
@@ -477,7 +492,13 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 onPitchChange={deck.setPitch}
                 onCycleRange={deck.handleCycleRange}
                 onToggleMasterTempo={() => deck.setMasterTempo((m) => !m)}
-                onReset={() => deck.setPitch(0)}
+                tempoReset={deck.tempoReset}
+                onReset={deck.toggleTempoReset}
+                syncOn={sync.syncOn}
+                isMaster={sync.isMaster}
+                onSync={sync.onSync}
+                onMaster={sync.onMaster}
+                onInstantDoubles={sync.onInstantDoubles}
                 idPrefix={idPrefix}
               />
             </View>

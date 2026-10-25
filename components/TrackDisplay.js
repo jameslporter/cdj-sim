@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BEAT_JUMP_COUNTS } from '../constants/theme';
 import { cdj } from '../constants/theme';
 import { formatTime } from '../utils/format';
 import TouchWaveform from './TouchWaveform';
-import { waveSeed, ZoomWaveform } from './Waveform';
+import { waveSeed } from './Waveform';
+import ZoomWaveform from './ZoomWaveform';
+import PhaseMeter from './PhaseMeter';
+import useLivePosition from '../hooks/useLivePosition';
 import { useLearnTarget } from '../hooks/useLearningMode';
 import LearnView from './LearnView';
 
@@ -12,6 +17,17 @@ export default function TrackDisplay({
   track,
   bpm,
   pitch,
+  synced,
+  syncOn,
+  isMaster,
+  isPlaying,
+  getPosition,
+  getMasterBeatPos,
+  memoryCues,
+  tempoReset,
+  autoCue,
+  beatJumpCount,
+  onSetBeatJumpCount,
   pitchRange,
   masterTempo,
   quantize,
@@ -37,6 +53,17 @@ export default function TrackDisplay({
   const [bpmWhole, bpmFrac] = String(bpm).split('.');
   const gateLearn = useLearnTarget(`${idPrefix}gate-cue`);
   const timeLearn = useLearnTarget(`${idPrefix}time-toggle`);
+  const jumpLearn = useLearnTarget(`${idPrefix}beatjump-count`);
+  const [jumpPanelOpen, setJumpPanelOpen] = useState(false);
+
+  // Live position for the scrolling waveform, phase meter and countdown.
+  const position = useLivePosition(getPosition, isPlaying || masterRunning(getMasterBeatPos), elapsed);
+  const beat = 60 / (track.bpm || 120);
+  const firstBeat = track.firstBeat || 0;
+  const beatPos = (position - firstBeat) / beat;
+  const masterBeatPos = getMasterBeatPos ? getMasterBeatPos() : null;
+  const countdown = beatCountdown(position, memoryCues, beat);
+  const loopTimes = loopRange ? { start: loopRange.startRatio * duration, end: loopRange.endRatio * duration } : null;
 
   return (
     <View style={styles.display}>
@@ -54,6 +81,15 @@ export default function TrackDisplay({
           </Text>
         </LearnView>
         <Pressable
+          {...jumpLearn.props}
+          testID={`${idPrefix}beatjump-count`}
+          onPress={() => setJumpPanelOpen((o) => !o)}
+          style={[styles.touchKey, jumpPanelOpen && styles.touchKeyOnWhite, jumpLearn.style]}
+        >
+          <Text style={[styles.touchKeyText, jumpPanelOpen && styles.touchKeyTextOnWhite]}>BEAT JUMP</Text>
+          <Text style={styles.jumpValue}>{formatBeats(beatJumpCount)}</Text>
+        </Pressable>
+        <Pressable
           {...gateLearn.props}
           testID={`${idPrefix}gate-cue`}
           onPress={onToggleGateCue}
@@ -67,9 +103,49 @@ export default function TrackDisplay({
         </LearnView>
       </View>
 
+      {jumpPanelOpen ? (
+        <View style={styles.jumpPanel} testID={`${idPrefix}beatjump-panel`}>
+          {BEAT_JUMP_COUNTS.map((count) => (
+            <Pressable
+              key={count}
+              testID={`${idPrefix}beatjump-size-${String(count).replace('.', '_')}`}
+              onPress={() => {
+                onSetBeatJumpCount(count);
+                setJumpPanelOpen(false);
+              }}
+              style={[styles.jumpOption, count === beatJumpCount && styles.jumpOptionOn]}
+            >
+              <Text style={[styles.jumpOptionText, count === beatJumpCount && styles.jumpOptionTextOn]}>
+                {formatBeats(count)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       <LearnView testID={`${idPrefix}display-zoom`} learnId={`${idPrefix}display-zoom`}>
-        <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} seed={seed} />
+        <ZoomWaveform
+          position={position}
+          duration={duration}
+          bpm={track.bpm}
+          firstBeat={firstBeat}
+          peaks={track.peaks}
+          seed={seed}
+          loop={loopTimes}
+          hotCues={hotCues}
+          memoryCues={memoryCues}
+        />
       </LearnView>
+
+      <View style={styles.phaseRow}>
+        <LearnView testID={`${idPrefix}phase-meter`} learnId={`${idPrefix}phase-meter`} style={styles.phaseWrap}>
+          <PhaseMeter beatPos={beatPos} masterBeatPos={isMaster ? null : masterBeatPos} isMaster={isMaster} />
+        </LearnView>
+        <LearnView testID={`${idPrefix}beat-countdown`} learnId={`${idPrefix}beat-countdown`} style={styles.countdown}>
+          <Text style={styles.countdownValue}>{countdown}</Text>
+          <Text style={styles.countdownUnit}>BARS</Text>
+        </LearnView>
+      </View>
 
       {/* Touch the overview: needle search while paused, Touch Cue
           (preview that spot) while playing. */}
@@ -98,7 +174,10 @@ export default function TrackDisplay({
           style={[styles.timeBlock, timeLearn.style]}
           onPress={onToggleTimeMode}
         >
-          <Text style={styles.metricLabel}>{timeMode}</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.metricLabel}>{timeMode}</Text>
+            {autoCue ? <Text style={styles.autoCueTag}>A.CUE</Text> : null}
+          </View>
           <Text style={styles.timeValue}>
             {timePrefix}
             {formatTime(timeValue)}
@@ -112,7 +191,7 @@ export default function TrackDisplay({
             <Text style={styles.metricLabel}>TEMPO</Text>
             <Text style={styles.rangeTag}>{pitchRange === 100 ? 'WIDE' : `±${pitchRange}`}</Text>
           </View>
-          <Text style={styles.tempoValue}>
+          <Text style={[styles.tempoValue, synced && styles.tempoUnlinked]}>
             {pitch > 0 ? '+' : pitch < 0 ? '' : ' '}
             {pitch.toFixed(2)}
             <Text style={styles.unit}>%</Text>
@@ -120,13 +199,19 @@ export default function TrackDisplay({
           <View style={styles.badgeRow}>
             <Text style={[styles.badge, masterTempo && styles.badgeOnRed]}>MT</Text>
             <Text style={[styles.badge, quantize && styles.badgeOnRed]}>Q</Text>
+            {syncOn ? <Text style={[styles.badge, styles.badgeOnBlue]}>SYNC</Text> : null}
+            {tempoReset ? <Text style={[styles.badge, styles.badgeOnGreen]}>RESET</Text> : null}
           </View>
         </LearnView>
 
         <View style={styles.divider} />
 
-        <LearnView testID={`${idPrefix}display-bpm`} learnId={`${idPrefix}display-bpm`} style={styles.bpmBlock}>
-          <Text style={styles.metricLabel}>BPM</Text>
+        <LearnView
+          testID={`${idPrefix}display-bpm`}
+          learnId={`${idPrefix}display-bpm`}
+          style={[styles.bpmBlock, isMaster && styles.bpmMaster]}
+        >
+          <Text style={[styles.metricLabel, isMaster && styles.masterLabel]}>{isMaster ? 'MASTER BPM' : 'BPM'}</Text>
           <Text style={styles.bpmValue}>
             {bpmWhole}
             <Text style={styles.bpmFrac}>.{bpmFrac ?? '00'}</Text>
@@ -137,7 +222,128 @@ export default function TrackDisplay({
   );
 }
 
+// Is the master deck's position moving? (Then this deck's phase meter must
+// keep redrawing even while this deck is paused.)
+function masterRunning(getMasterBeatPos) {
+  return Boolean(getMasterBeatPos);
+}
+
+// Bars and beats to the next memory cue, as the CDJ shows it ("16.4" = 16
+// bars and 4 beats). "--.-" when there's no memory cue ahead.
+function beatCountdown(position, memoryCues, beat) {
+  const next = (memoryCues || []).find((c) => c.time > position + 0.01);
+  if (!next) return '--.-';
+  const beats = Math.ceil((next.time - position) / beat - 0.001);
+  return `${Math.floor(beats / 4)}.${beats % 4}`;
+}
+
+// Beat counts as the CDJ shows them: 1/2, 1, 2 … 64.
+function formatBeats(count) {
+  return count < 1 ? `1/${Math.round(1 / count)}` : String(count);
+}
+
 const styles = StyleSheet.create({
+  phaseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 8,
+  },
+  phaseWrap: {
+    flex: 1,
+  },
+  countdown: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+  },
+  countdownValue: {
+    color: cdj.screenText,
+    fontSize: 11,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  countdownUnit: {
+    color: cdj.screenLabel,
+    fontSize: 7,
+    fontWeight: '800',
+  },
+  bpmMaster: {
+    borderWidth: 1,
+    borderColor: cdj.ledOrange,
+    borderRadius: 3,
+    paddingHorizontal: 4,
+  },
+  masterLabel: {
+    color: cdj.ledOrange,
+  },
+  tempoUnlinked: {
+    color: cdj.screenTextDim,
+  },
+  badgeOnBlue: {
+    color: cdj.ledBlue,
+    borderColor: cdj.ledBlue,
+  },
+  jumpValue: {
+    color: cdj.screenText,
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  touchKeyOnWhite: {
+    borderColor: cdj.screenText,
+    backgroundColor: '#1d2229',
+  },
+  touchKeyTextOnWhite: {
+    color: cdj.screenText,
+  },
+  // Pops up over the waveform, like the touch screen's BEAT JUMP panel.
+  jumpPanel: {
+    position: 'absolute',
+    top: 46,
+    left: 8,
+    right: 8,
+    zIndex: 2,
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    backgroundColor: cdj.screenPanel,
+    borderWidth: 1,
+    borderColor: cdj.screenDivider,
+    borderRadius: 4,
+  },
+  jumpOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#3a4048',
+    borderRadius: 3,
+  },
+  jumpOptionOn: {
+    borderColor: cdj.screenText,
+    backgroundColor: '#1d2229',
+  },
+  jumpOptionText: {
+    color: cdj.screenTextDim,
+    fontSize: 10,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  jumpOptionTextOn: {
+    color: cdj.screenText,
+  },
+  autoCueTag: {
+    color: cdj.screenText,
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  badgeOnGreen: {
+    color: cdj.ledGreen,
+    borderColor: cdj.ledGreen,
+  },
   display: {
     flex: 1,
     backgroundColor: cdj.screenBg,

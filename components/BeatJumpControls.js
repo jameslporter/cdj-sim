@@ -2,19 +2,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
 import DeckButton from './DeckButton';
 
-export default function BeatJumpControls({ beatCount, onCycleCount, onBack, onForward, idPrefix = '' }) {
+// The jump size is set on the touch screen (BEAT JUMP on the player view).
+export default function BeatJumpControls({ onBack, onForward, idPrefix = '' }) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.silk}>BEAT JUMP</Text>
       <View style={styles.group}>
         <DeckButton testID={`${idPrefix}beatjump-back`} label="◀" onPress={onBack} style={styles.button} />
-        <DeckButton
-          testID={`${idPrefix}beatjump-count`}
-          label={String(beatCount)}
-          sublabel="BEATS"
-          onPress={onCycleCount}
-          style={styles.button}
-        />
         <DeckButton testID={`${idPrefix}beatjump-forward`} label="▶" onPress={onForward} style={styles.button} />
       </View>
     </View>

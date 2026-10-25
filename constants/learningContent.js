@@ -98,8 +98,20 @@ export const LEARN_CONTENT = {
   },
   'display-zoom': {
     title: 'ZOOMED WAVEFORM',
-    what: 'A close-up of the music around the playhead (the line in the middle). Tall parts are loud, bass-heavy beats; thin parts are breakdowns.',
-    how: 'DJs read it to see what\'s coming: the next drop, a breakdown, or where the beats line up for a cue point.',
+    what: 'A close-up of the music around the playhead (the red line in the middle), scrolling at a fixed speed. The thin white lines are the beat grid, one per beat; the red lines mark the first beat of each bar. Coloured marks at the top are hot cues, red triangles at the bottom are memory cues.',
+    how: 'DJs read it to see what\'s coming: the next drop, a breakdown, or where the beats line up for a cue point. With two decks playing, compare where the grid lines cross the playhead to check your beatmatch.',
+  },
+  'phase-meter': {
+    title: 'PHASE METER',
+    what: 'Four boxes for the four beats of a bar. The white box is the beat this deck is on; the orange outline is the master deck\'s beat. The small bar on the right shows how far apart the beats are: centred and green means locked.',
+    how: 'After matching BPMs, nudge the jog until the white box and orange outline sit together and the needle is centred. Then the two tracks are in time, bar for bar.',
+    tip: 'Play deck A, set it as MASTER, play deck B and watch its phase meter. Nudge B\'s jog ring to line them up.',
+  },
+  'beat-countdown': {
+    title: 'BEAT COUNTDOWN',
+    what: 'Bars and beats left until the next memory cue, so "8.2" means 8 bars and 2 beats.',
+    how: 'DJs mark the end of an intro or the start of an outro with a memory cue, then glance here to time the mix to the phrase.',
+    tip: 'Press MEMORY a little ahead of the playhead, go back, and watch it count down.',
   },
   'overview-waveform': {
     title: 'OVERVIEW WAVEFORM',
@@ -133,8 +145,9 @@ export const LEARN_CONTENT = {
   // ── Deck: pads and cue/loop buttons ───────────────────────────────────
   'time-mode': {
     title: 'TIME MODE / AUTO CUE',
-    what: 'Switches the time display between elapsed and remaining. Holding it turns Auto Cue on or off, which sets the cue point at the first sound when a track loads.',
-    how: 'With Auto Cue on, a freshly loaded track is ready to start on the first beat instead of a few seconds of silence.',
+    what: 'Switches the time display between elapsed and remaining. Holding it turns Auto Cue on or off, which sets the cue point just before the first sound when a track loads. A.CUE on the screen shows it\'s on.',
+    how: 'With Auto Cue on, a freshly loaded track is ready to start on the first beat instead of a few seconds of silence. It\'s on by default, and the deck remembers the setting.',
+    tip: 'Hold TIME MODE until A.CUE disappears from the screen, then load a track: it now starts at 0:00.',
   },
   quantize: {
     title: 'QUANTIZE',
@@ -154,19 +167,20 @@ export const LEARN_CONTENT = {
   },
   'memory-delete': {
     title: 'DELETE',
-    what: 'Deletes the memory cue you last called.',
-    how: 'Clean up memory cues you no longer need.',
+    what: 'Tap it to delete the memory cue you last called. Hold it and press a HOT CUE pad to delete that hot cue.',
+    how: 'Clean up cues you no longer need. Holding DELETE first means a stray pad press can never wipe a cue.',
+    note: 'With a mouse you can\'t hold two buttons, so clicking DELETE makes it blink until you click a pad. Click DELETE again instead to delete the memory cue.',
   },
   hotcue: {
     title: 'HOT CUE A–H',
-    what: 'Eight pads that each store a point in the track. Press an empty pad to save the current position; press a lit pad to jump there and play instantly. Hold a lit pad to delete it.',
+    what: 'Eight pads that each store a point in the track. Press an empty pad to save the current position; press a lit pad to jump there and play instantly. To delete one, hold DELETE and press the pad.',
     how: 'DJs set hot cues on drops, vocals and breakdowns to jump around the track, remix live or start a mix from exactly the right beat. Hot cues stay with the track and come back every time it\'s loaded.',
     tip: 'Play a track, tap pad A to save a cue, then tap it again to jump back.',
   },
   'loop-in': {
     title: 'LOOP IN / CUE',
-    what: 'Sets the start of a loop at the current position. Once a loop exists, it adjusts the loop\'s start.',
-    how: 'Press IN at the start of a phrase, then OUT a few beats later to loop it. DJs loop intros and outros to give themselves more time to mix.',
+    what: 'Sets the start of a loop at the current position, and sets the cue point there too. Once a loop exists, it adjusts the loop\'s start.',
+    how: 'Press IN at the start of a phrase, then OUT a few beats later to loop it. It\'s also how you set a new cue point without stopping the track.',
   },
   'loop-out': {
     title: 'LOOP OUT',
@@ -196,7 +210,7 @@ export const LEARN_CONTENT = {
   },
   'beatjump-count': {
     title: 'BEAT JUMP SIZE',
-    what: 'Sets how far BEAT JUMP moves: 1, 2, 4, 8, 16 or 32 beats.',
+    what: 'Shows how far BEAT JUMP moves. Touch it to pick 1/2, 1, 2, 4, 8, 16, 32 or 64 beats. The deck starts at 16.',
     how: '16 or 32 beats (4 or 8 bars) is common for skipping whole phrases; small jumps are for creative stutters.',
   },
 
@@ -239,8 +253,8 @@ export const LEARN_CONTENT = {
   },
   'track-search': {
     title: 'TRACK SEARCH |◀◀ ▶▶|',
-    what: 'Loads the previous or next track in the current folder or playlist.',
-    how: 'A quick way to step through tracks in order without opening the browser.',
+    what: '▶▶| loads the next track in the current folder or playlist. |◀◀ first jumps back to the start of the loaded track; press it again to load the previous track. A track loaded while playing starts playing.',
+    how: 'A quick way to step through tracks in order without opening the browser. Never press it on the deck that\'s playing to the crowd!',
   },
   search: {
     title: 'SEARCH ◀◀ ▶▶',
@@ -249,16 +263,29 @@ export const LEARN_CONTENT = {
   },
   'cue-button': {
     title: 'CUE',
-    what: 'While paused, sets the cue point at the current position. While playing, jumps back to the cue point and pauses. Holding CUE plays from the cue until you let go.',
-    how: 'The classic way to start a mix: set the cue on the first beat, then hit PLAY right on the beat of the track that\'s playing. DJs "cue juggle" by tapping CUE to preview the start.',
+    what: 'While paused, sets the cue point at the current position. While playing, jumps back to the cue point and pauses. Holding CUE while paused plays from the cue until you let go; press PLAY while holding it to keep playing. The ring is solid when you\'re paused on the cue, and blinks when you\'re paused anywhere else.',
+    how: 'The classic way to start a mix: find the first beat with the jog, press CUE to mark it, then hit PLAY right on the beat of the track that\'s playing. DJs tap CUE to check the start is right.',
+    tip: 'Pause, nudge the jog a little, press CUE. Now hold CUE: the track plays from there and snaps back when you let go.',
+    note: 'With a mouse you can only hold one button, so CUE + PLAY needs a touch screen.',
   },
   'play-button': {
     title: 'PLAY / PAUSE',
-    what: 'Starts and pauses playback. The ring glows green while playing.',
+    what: 'Starts and pauses playback. The ring is solid green while playing and blinks while paused. Pausing doesn\'t move the cue point.',
     how: 'Start the incoming track on the downbeat of the outgoing one.',
   },
 
   // ── Deck: tempo ───────────────────────────────────────────────────────
+  'beat-sync': {
+    title: 'BEAT SYNC / INST DOUBLES',
+    what: 'Locks this deck\'s tempo and beats to the MASTER deck. The tempo fader stops having an effect while it\'s on (the TEMPO % turns grey). Hold it for INST DOUBLES, which loads the other deck\'s track at the same spot.',
+    how: 'Sync takes care of beatmatching so you can focus on EQ, phrasing and effects. Learn to beatmatch by ear too, in case sync is off or the beat grid is wrong.',
+    tip: 'Play deck A, then press BEAT SYNC on deck B and play it: the BPMs match and the beats line up.',
+  },
+  'sync-master': {
+    title: 'MASTER',
+    what: 'Makes this deck the tempo master. Decks with BEAT SYNC on follow its BPM and beats. The master\'s BPM is framed in orange.',
+    how: 'The master is usually the track playing to the crowd. When you finish a mix, hand MASTER to the new track so the next one follows it.',
+  },
   'tempo-range': {
     title: 'TEMPO RANGE',
     what: 'Sets how far the tempo fader can change the speed: ±6%, ±10%, ±16% or WIDE (±100%).',
@@ -277,9 +304,8 @@ export const LEARN_CONTENT = {
   },
   'tempo-reset': {
     title: 'TEMPO RESET',
-    what: 'Plays the track at its original speed, ignoring the tempo fader, until you turn it off.',
-    how: 'Quickly hear a track at its natural tempo, or play it untouched after a mix.',
-    note: 'In the sim it sets the fader back to 0%.',
+    what: 'Plays the track at its original speed, ignoring the tempo fader, until you press it again. The fader doesn\'t move.',
+    how: 'Quickly hear a track at its natural tempo, or play it untouched after a mix. Remember the fader still holds its old setting for when you turn it off.',
   },
 
   // ── Deck: browse and Playlist Bank (3000X) ────────────────────────────
@@ -522,6 +548,7 @@ const ALIASES = [
   [/^hotcue-[A-H]$/, 'hotcue'],
   [/^memory-call-(back|forward)$/, 'memory-call'],
   [/^beatjump-(back|forward)$/, 'beatjump'],
+  [/^beatjump-(size-.*|panel)$/, 'beatjump-count'],
   [/^track-search-(back|forward)$/, 'track-search'],
   [/^search-(back|forward)$/, 'search'],
   [/^direction(-.*)?$/, 'direction'],

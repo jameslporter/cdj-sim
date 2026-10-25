@@ -29,7 +29,7 @@ export const hotCueColors = [
   '#ff7ad1',
 ];
 
-export const BEAT_JUMP_COUNTS = [1, 2, 4, 8, 16, 32];
+export const BEAT_JUMP_COUNTS = [0.5, 1, 2, 4, 8, 16, 32, 64];
 export const TEMPO_RANGES = [6, 10, 16, 100];
 
 // CDJ-3000X (black) palette. The decks use this; the mixer still uses

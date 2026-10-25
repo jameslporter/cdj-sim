@@ -13,7 +13,7 @@ export function waveSample(i) {
 
 // Three-band (blue / light blue / white) column, mirrored around the centre
 // line like rekordbox's waveforms.
-function WaveColumn({ amp, height, dim }) {
+export function WaveColumn({ amp, height, dim }) {
   const h = amp * height;
   if (h <= 0) return <View style={styles.column} />;
   return (
@@ -87,60 +87,6 @@ export function waveSeed(id = '') {
   return h;
 }
 
-// Zoomed, scrolling waveform (main area of the CDJ screen). The track moves
-// past a fixed playhead in the centre.
-export function ZoomWaveform({
-  progressRatio,
-  loopRange,
-  peaks,
-  height = 86,
-  visibleBars = 72,
-  totalBars = 1400,
-  seed = 0,
-}) {
-  const pos = Math.min(1, Math.max(0, progressRatio)) * totalBars;
-  const first = Math.floor(pos) - visibleBars / 2;
-
-  const columns = [];
-  for (let k = 0; k < visibleBars; k += 1) {
-    const i = first + k;
-    const sample = peaks?.length ? peaks[Math.floor((i / totalBars) * peaks.length)] : waveSample(i + seed);
-    const amp = i < 0 || i >= totalBars ? 0 : sample;
-    columns.push(<WaveColumn key={k} amp={amp} height={height} dim={false} />);
-  }
-
-  let loopStyle = null;
-  if (loopRange) {
-    const a = (loopRange.startRatio * totalBars - first) / visibleBars;
-    const b = (loopRange.endRatio * totalBars - first) / visibleBars;
-    const left = Math.max(0, a);
-    const right = Math.min(1, b);
-    if (right > left) loopStyle = { left: `${left * 100}%`, width: `${(right - left) * 100}%` };
-  }
-
-  // Beat grid: one tick every 4 bars (≈ one beat at this zoom).
-  const ticks = [];
-  for (let k = 0; k < visibleBars; k += 1) {
-    if ((first + k) % 4 === 0) {
-      ticks.push(
-        <View
-          key={k}
-          style={[styles.gridTick, (first + k) % 16 === 0 && styles.gridTickBar, { left: `${(k / visibleBars) * 100}%` }]}
-        />
-      );
-    }
-  }
-
-  return (
-    <View style={[styles.zoom, { height }]}>
-      {ticks}
-      <View style={styles.zoomBars}>{columns}</View>
-      {loopStyle ? <View style={[styles.loopRegion, loopStyle]} /> : null}
-      <View style={styles.zoomPlayhead} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   waveform: {
     flexDirection: 'row',
@@ -174,35 +120,5 @@ const styles = StyleSheet.create({
     width: 2,
     marginLeft: -1,
     backgroundColor: cdj.screenText,
-  },
-  zoom: {
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: '#020306',
-  },
-  zoomBars: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    gap: 1,
-  },
-  gridTick: {
-    position: 'absolute',
-    top: 0,
-    width: 1,
-    height: 6,
-    backgroundColor: '#5b6470',
-  },
-  gridTickBar: {
-    height: 10,
-    backgroundColor: '#ff3b30',
-  },
-  zoomPlayhead: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: '50%',
-    width: 2,
-    marginLeft: -1,
-    backgroundColor: cdj.playhead,
   },
 });
