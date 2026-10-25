@@ -11,6 +11,7 @@ import useTouchPreview from './useTouchPreview';
 import useTrackHotCues from './useTrackHotCues';
 import useTrackMemoryCues, { getTrackMemoryCues } from './useTrackMemoryCues';
 import { keySyncShift, parseKey, shiftKeyText } from '../utils/musicKey';
+import { useWaveformDetail } from '../utils/waveformDetail';
 import { DEFAULT_SETTINGS, quantizeBeats } from '../constants/utilitySettings';
 
 const EMPTY_LOOP = { active: false, start: null, end: null };
@@ -137,6 +138,7 @@ export default function useCdjDeck({
   const setMemoryCues = (update) => trackMemoryCues.set(track.id, update);
 
   const { player, status, routedThroughMixer } = useDeckPlayer(audioSource, channel);
+  const waveDetail = useWaveformDetail(player, status.isLoaded, track.id);
 
   const duration = (status.isLoaded && status.duration) || track.duration || 1;
   // BEAT SYNC overrides the fader (it's "unlinked" until sync is off), and
@@ -786,6 +788,7 @@ export default function useCdjDeck({
     track,
     loadError,
     routedThroughMixer,
+    waveDetail,
     duration,
     isPlaying,
     elapsed,

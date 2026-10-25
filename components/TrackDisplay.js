@@ -54,6 +54,7 @@ export default function TrackDisplay({
   gateCue,
   onToggleGateCue,
   previewRatio,
+  waveDetail,
   onOverviewTouchStart,
   onOverviewTouchMove,
   onOverviewTouchEnd,
@@ -188,6 +189,8 @@ export default function TrackDisplay({
           bpm={track.bpm}
           firstBeat={firstBeat}
           peaks={track.peaks}
+          bands={track.bands}
+          detail={waveDetail}
           seed={seed}
           loop={loopTimes}
           hotCues={hotCues}
@@ -212,6 +215,7 @@ export default function TrackDisplay({
           testID={`${idPrefix}overview-waveform`}
           seed={seed}
           peaks={track.peaks}
+          bands={track.bands}
           height={30}
           barCount={90}
           progressRatio={progressRatio}

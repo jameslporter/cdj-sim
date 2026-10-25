@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { cdj } from '../constants/theme';
 
@@ -11,11 +11,67 @@ export function waveSample(i) {
   return Math.min(1, (0.35 + 0.65 * beat) * phrase + texture * 0.4);
 }
 
-// Three-band (blue / light blue / white) column, mirrored around the centre
-// line like rekordbox's waveforms.
-export function WaveColumn({ amp, height, dim }) {
+// WAVEFORM COLOR (UTILITY): 'BLUE', 'RGB' or '3BAND'. Each deck provides
+// its own setting to the waveforms on its screen.
+export const WaveformColorContext = createContext('BLUE');
+
+const BAND3 = { low: '#2a64ff', mid: '#ff9d1c', high: '#f4f8ff' };
+const BAND3_DIM = { low: '#3a3f47', mid: '#565b63', high: '#80858c' };
+
+// Without analysed bands (Expo Go, or tracks imported before band analysis),
+// fall back to a plausible split of the loudness.
+const fallbackBands = (amp) => ({
+  low: amp,
+  mid: amp * 0.75,
+  high: amp * 0.45,
+});
+
+const hex = (v) =>
+  Math.round(Math.min(1, Math.max(0, v)) * 255)
+    .toString(16)
+    .padStart(2, '0');
+
+// rekordbox-style RGB: bass red, mids green, highs blue, scaled up so the
+// strongest of the three is at full brightness.
+export function rgbColor({ low, mid, high }) {
+  const r = low;
+  const g = mid * 0.9;
+  const b = high * 1.1;
+  const top = Math.max(r, g, b, 0.001);
+  return `#${hex(r / top)}${hex(g / top)}${hex(b / top)}`;
+}
+
+// One waveform column, mirrored around the centre line like rekordbox's.
+export function WaveColumn({ amp, bands, height, dim, mode = 'BLUE' }) {
   const h = amp * height;
+  if (mode === '3BAND') {
+    const b = bands ?? fallbackBands(amp);
+    const colors = dim ? BAND3_DIM : BAND3;
+    // Bass behind, highs in front; each band's own level sets its height.
+    const layers = [
+      ['low', b.low * height],
+      ['mid', b.mid * 0.75 * height],
+      ['high', b.high * 0.4 * height],
+    ];
+    return (
+      <View style={styles.column}>
+        {layers.map(([name, lh]) =>
+          lh > 0.5 ? (
+            <View key={name} style={[styles.layer, { height: lh, top: (height - lh) / 2, backgroundColor: colors[name] }]} />
+          ) : null
+        )}
+      </View>
+    );
+  }
   if (h <= 0) return <View style={styles.column} />;
+  if (mode === 'RGB') {
+    const color = dim ? cdj.wavePlayed : rgbColor(bands ?? fallbackBands(amp));
+    return (
+      <View style={styles.column}>
+        <View style={[styles.band, { height: h, backgroundColor: color }]} />
+      </View>
+    );
+  }
   return (
     <View style={styles.column}>
       <View style={[styles.band, { height: h, backgroundColor: dim ? cdj.wavePlayed : cdj.waveLow }]}>
@@ -27,41 +83,58 @@ export function WaveColumn({ amp, height, dim }) {
   );
 }
 
+// Loudest value of `arr` between fractions `a` and `b` of its length.
+function maxIn(arr, a, b) {
+  const from = Math.floor(a * arr.length);
+  const to = Math.max(from + 1, Math.floor(b * arr.length));
+  let m = 0;
+  for (let k = from; k < to && k < arr.length; k += 1) m = Math.max(m, arr[k]);
+  return m;
+}
+
 // Overview waveform of the whole track (bottom strip of the CDJ screen).
 // Played part is greyed out, like the CDJ-3000X.
-// Imported tracks carry real loudness `peaks` from analysis; demo tracks use
-// the synthetic envelope above.
+// Tracks carry real loudness `peaks` (and frequency `bands`) from analysis;
+// the synthetic envelope above is only a fallback.
 export default function Waveform({
   progressRatio,
   loopRange,
   peaks,
+  bands,
   height = 30,
   barCount = 90,
   seed = 0,
   showPlayhead = true,
 }) {
-  const amps = useMemo(() => {
+  const mode = useContext(WaveformColorContext);
+  const columns = useMemo(() => {
     const result = [];
     for (let i = 0; i < barCount; i += 1) {
-      if (peaks?.length) {
-        const from = Math.floor((i / barCount) * peaks.length);
-        const to = Math.max(from + 1, Math.floor(((i + 1) / barCount) * peaks.length));
-        let m = 0;
-        for (let k = from; k < to; k += 1) m = Math.max(m, peaks[k]);
-        result.push(m);
-      } else {
-        result.push(waveSample(i * 4.4 + seed));
-      }
+      const a = i / barCount;
+      const b = (i + 1) / barCount;
+      result.push({
+        amp: peaks?.length ? maxIn(peaks, a, b) : waveSample(i * 4.4 + seed),
+        bands: bands?.low?.length
+          ? { low: maxIn(bands.low, a, b), mid: maxIn(bands.mid, a, b), high: maxIn(bands.high, a, b) }
+          : null,
+      });
     }
     return result;
-  }, [barCount, peaks, seed]);
+  }, [barCount, peaks, bands, seed]);
 
   const clamped = Math.min(1, Math.max(0, progressRatio));
 
   return (
     <View style={[styles.waveform, { height }]}>
-      {amps.map((amp, i) => (
-        <WaveColumn key={i} amp={amp} height={height} dim={i / amps.length < clamped} />
+      {columns.map((col, i) => (
+        <WaveColumn
+          key={i}
+          amp={col.amp}
+          bands={col.bands}
+          height={height}
+          mode={mode}
+          dim={i / columns.length < clamped}
+        />
       ))}
       {loopRange ? (
         <View
@@ -103,6 +176,11 @@ const styles = StyleSheet.create({
   band: {
     alignSelf: 'stretch',
     justifyContent: 'center',
+  },
+  layer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
   loopRegion: {
     position: 'absolute',

@@ -143,6 +143,7 @@ export default function BrowseScreen({
                     style={[styles.previewWave, previewing && styles.previewWaveActive]}
                     seed={waveSeed(track.id)}
                     peaks={track.peaks}
+                    bands={track.bands}
                     height={18}
                     barCount={44}
                     showPlayhead={false}

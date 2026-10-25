@@ -1,5 +1,8 @@
 // Audio: Kevin MacLeod (incompetech.com), CC BY 4.0 — see assets/audio/CREDITS.md
 // Every track (demo or imported) shares one shape — see hooks/useTrackLibrary.js.
+import { unpackBands, unpackPeaks } from '../utils/peakPacking';
+import { DEMO_WAVEFORMS } from './demoWaveforms';
+
 export const DEMO_TRACKS = [
   {
     id: 'demo-edm-detection-mode',
@@ -34,7 +37,12 @@ export const DEMO_TRACKS = [
     firstBeat: 0,
     file: require('../assets/audio/neon-laser-horizon.mp3'),
   },
-];
+].map((t) => ({
+  ...t,
+  // Real waveform levels, analysed ahead of time (scripts/analyze-demo-waveforms.mjs).
+  peaks: unpackPeaks(DEMO_WAVEFORMS[t.id]?.peaks),
+  bands: unpackBands(DEMO_WAVEFORMS[t.id]?.bands),
+}));
 
 // Folder names on the simulated USB drive's BROWSE screen. rekordbox-exported
 // drives put every track under "Contents"; imported tracks get their own folder.

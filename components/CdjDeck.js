@@ -29,6 +29,7 @@ import SearchKeyboard from './SearchKeyboard';
 import UtilityScreen from './UtilityScreen';
 import { UTILITY_SETTINGS } from '../constants/utilitySettings';
 import TrackFilterScreen from './TrackFilterScreen';
+import { WaveformColorContext } from './Waveform';
 import useTagList, { tagList } from '../hooks/useTagList';
 import { describeFilter, EMPTY_FILTER, passesFilter } from '../utils/trackFilter';
 
@@ -346,7 +347,8 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
   const toggleTimeMode = () => deck.setTimeMode((m) => (m === 'ELAPSED' ? 'REMAIN' : 'ELAPSED'));
 
   return (
-    <View style={styles.column}>
+    <WaveformColorContext.Provider value={settings.waveformColor}>
+      <View style={styles.column}>
       <ScrollView testID={`${idPrefix}scroll`} style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.body}>
           <View style={styles.topPanel}>
@@ -464,6 +466,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
                       previewRatio={
                         preview.active && preview.track?.id === deck.track.id ? preview.time / deck.duration : null
                       }
+                      waveDetail={deck.waveDetail}
                       onOverviewTouchStart={startOverviewTouch}
                       onOverviewTouchMove={moveOverviewTouch}
                       onOverviewTouchEnd={endOverviewTouch}
@@ -661,7 +664,8 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
           </View>
         </View>
       </ScrollView>
-    </View>
+      </View>
+    </WaveformColorContext.Provider>
   );
 }
 
