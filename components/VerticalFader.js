@@ -3,6 +3,7 @@ import { PanResponder, StyleSheet, View } from 'react-native';
 import { colors } from '../constants/theme';
 import { clamp } from '../utils/format';
 import { useLearnTarget } from '../hooks/useLearningMode';
+import { dragResponderConfig, dragSurfaceStyle } from '../utils/dragControl';
 
 function valueToY(value, min, max, trackHeight, thumbHeight) {
   return ((max - value) / (max - min)) * (trackHeight - thumbHeight);
@@ -36,8 +37,7 @@ function VerticalFader({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      ...dragResponderConfig,
       onPanResponderGrant: () => {
         startYRef.current = valueToY(valueRef.current, min, max, trackHeight, thumbHeight);
       },
@@ -54,7 +54,7 @@ function VerticalFader({
   const thumbY = valueToY(value, min, max, trackHeight, thumbHeight);
 
   return (
-    <View {...learn.props} style={[styles.track, { width: trackWidth, height: trackHeight }, trackStyle, learn.style]}>
+    <View {...learn.props} style={[styles.track, { width: trackWidth, height: trackHeight }, trackStyle, dragSurfaceStyle, learn.style]}>
       {centerTick ? <View style={[styles.centerTick, { width: trackWidth - 16 }, centerTickStyle]} /> : null}
       <View
         testID={testID}
@@ -62,6 +62,7 @@ function VerticalFader({
           styles.thumb,
           { top: thumbY, width: thumbWidth, height: thumbHeight, borderColor: accentColor },
           thumbStyle,
+          dragSurfaceStyle,
         ]}
         {...panResponder.panHandlers}
       >

@@ -3,6 +3,7 @@ import { PanResponder, StyleSheet, View } from 'react-native';
 import { colors } from '../constants/theme';
 import { clamp } from '../utils/format';
 import { useLearnTarget } from '../hooks/useLearningMode';
+import { dragResponderConfig, dragSurfaceStyle } from '../utils/dragControl';
 
 function valueToX(value, min, max, trackWidth, thumbWidth) {
   return ((value - min) / (max - min)) * (trackWidth - thumbWidth);
@@ -33,8 +34,7 @@ function HorizontalFader({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      ...dragResponderConfig,
       onPanResponderGrant: (evt) => {
         startXRef.current = valueToX(valueRef.current, min, max, trackWidth, thumbWidth);
         startPageXRef.current = evt.nativeEvent.pageX;
@@ -54,13 +54,14 @@ function HorizontalFader({
   const thumbX = valueToX(value, min, max, trackWidth, thumbWidth);
 
   return (
-    <View {...learn.props} style={[styles.track, { width: trackWidth, height: trackHeight }, learn.style]}>
+    <View {...learn.props} style={[styles.track, { width: trackWidth, height: trackHeight }, dragSurfaceStyle, learn.style]}>
       {centerTick ? <View style={[styles.centerTick, { height: trackHeight - 16 }]} /> : null}
       <View
         testID={testID}
         style={[
           styles.thumb,
           { left: thumbX, width: thumbWidth, height: thumbHeight, borderColor: accentColor },
+          dragSurfaceStyle,
         ]}
         {...panResponder.panHandlers}
       >
