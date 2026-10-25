@@ -26,6 +26,9 @@ export default function BrowseScreen({
   loadedTrackId,
   status,
   header,
+  footer,
+  taggedIds,
+  filterLabel,
   showPreview,
   onTogglePreview,
   preview,
@@ -53,6 +56,11 @@ export default function BrowseScreen({
         <Text style={styles.breadcrumb} numberOfLines={1}>
           {breadcrumb.join(' ▸ ')}
         </Text>
+        {filterLabel ? (
+          <Text testID={`${idPrefix}filter-badge`} style={styles.filterBadge} numberOfLines={1}>
+            FILTER {filterLabel}
+          </Text>
+        ) : null}
         {onTogglePreview ? (
           <Pressable
             {...previewToggleLearn.props}
@@ -75,6 +83,7 @@ export default function BrowseScreen({
             const track = item.type === 'track' ? item.track : null;
             const loaded = track && track.id === loadedTrackId;
             const previewing = track && preview?.active && preview.track?.id === track.id;
+            const tagged = track && taggedIds?.includes(track.id);
             return (
               <View key={i} style={[styles.row, selected && styles.rowSelected]}>
                 <Pressable testID={`${idPrefix}browse-row-${i}`} style={styles.rowMain} onPress={() => onSelectItem(i)}>
@@ -92,6 +101,7 @@ export default function BrowseScreen({
                     </Text>
                   ) : (
                     <>
+                      <Text style={[styles.tagMark, tagged && styles.tagMarkOn]}>{tagged ? '●' : ' '}</Text>
                       <View style={styles.trackInfo}>
                         <Text
                           style={[styles.trackTitle, loaded && styles.loadedText, selected && styles.selectedText]}
@@ -106,6 +116,7 @@ export default function BrowseScreen({
                       <Text style={[styles.trackMeta, selected && styles.selectedText]}>
                         {formatBpm(track.bpm)} BPM
                       </Text>
+                      <Text style={[styles.trackMeta, styles.keyMeta, selected && styles.selectedText]}>{track.key}</Text>
                       {showPreview ? null : (
                         <Text style={[styles.trackMeta, selected && styles.selectedText]}>
                           {formatTime(track.duration)}
@@ -149,6 +160,7 @@ export default function BrowseScreen({
         )}
       </ScrollView>
       </LearnView>
+      {footer}
       {status ? (
         <Text testID={`${idPrefix}browse-status`} style={styles.status} numberOfLines={2}>
           {status}
@@ -171,6 +183,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: cdj.screenDivider,
     paddingRight: 4,
+  },
+  filterBadge: {
+    color: '#ffb238',
+    fontSize: 8,
+    fontWeight: '800',
+    marginRight: 6,
+    maxWidth: 170,
+  },
+  tagMark: {
+    width: 10,
+    color: 'transparent',
+    fontSize: 9,
+  },
+  tagMarkOn: {
+    color: '#ff4f9a',
+  },
+  keyMeta: {
+    width: 28,
+    textAlign: 'right',
   },
   touchKey: {
     borderWidth: 1,

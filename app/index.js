@@ -94,6 +94,15 @@ export default function CdjSimulator() {
   const syncProps = (id) => ({
     isMaster: master === id,
     masterKey: syncKeyFor(id),
+    // TRACK FILTER compares with the sync master's track.
+    filterRef:
+      master && master !== id
+        ? {
+            title: decksRef.current[master].track.title,
+            bpm: decksRef.current[master].displayedBpm,
+            key: decksRef.current[master].displayKey,
+          }
+        : null,
     syncOn: syncOn[id],
     getMasterBeatPos: master && master !== id ? getMasterBeatPos : null,
     onSync: () => handleSync(id),

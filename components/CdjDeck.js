@@ -25,6 +25,10 @@ import TrackSearchControls from './TrackSearchControls';
 import TransportControls from './TransportControls';
 import UsbRow from './UsbRow';
 import LearnView from './LearnView';
+import SearchKeyboard from './SearchKeyboard';
+import TrackFilterScreen from './TrackFilterScreen';
+import useTagList, { tagList } from '../hooks/useTagList';
+import { describeFilter, EMPTY_FILTER, passesFilter } from '../utils/trackFilter';
 
 function importLabel(library) {
   if (!library.importSupported) return 'IMPORT UNAVAILABLE';
@@ -62,14 +66,23 @@ function importSummary(result) {
   return parts.join(' · ') || 'NO FILES CHOSEN';
 }
 
-const LIST_SCREENS = ['BROWSE', 'PLAYLIST'];
+const LIST_SCREENS = ['BROWSE', 'PLAYLIST', 'TAG LIST', 'SEARCH'];
+const LIST_TITLES = { BROWSE: 'USB1', PLAYLIST: 'PLAYLIST', 'TAG LIST': 'TAG LIST', SEARCH: 'SEARCH' };
 
 export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir = false }) {
   const { preview } = deck;
   const bank = usePlaylistBank(`cdj-sim:playlist-bank:${idPrefix}`);
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
   // Where each list screen is: the names of the folders entered, and the cursor row.
-  const [nav, setNav] = useState({ BROWSE: { path: [], sel: 0 }, PLAYLIST: { path: [], sel: 0 } });
+  const [nav, setNav] = useState({
+    BROWSE: { path: [], sel: 0 },
+    PLAYLIST: { path: [], sel: 0 },
+    'TAG LIST': { path: [], sel: 0 },
+    SEARCH: { path: [], sel: 0 },
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [trackFilter, setTrackFilter] = useState(EMPTY_FILTER);
+  const taggedIds = useTagList();
   const [browseStatus, setBrowseStatus] = useState(null);
   const [showPreview, setShowPreview] = useState(true);
   const overviewTouchRef = useRef(null); // { mode: 'preview' | 'needle', isMouse }
@@ -95,11 +108,29 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir = 
 
   const isListScreen = LIST_SCREENS.includes(activeScreen);
   const listScreen = isListScreen ? activeScreen : 'BROWSE';
-  const roots = { BROWSE: tree, PLAYLIST: playlistTree };
+  // TAG LIST in the order tracks were tagged; SEARCH matches title or artist.
+  const tagTree = useMemo(() => {
+    const byId = Object.fromEntries(allTracks.map((t) => [t.id, t]));
+    return taggedIds.filter((id) => byId[id]).map((id) => ({ type: 'track', track: byId[id] }));
+  }, [allTracks, taggedIds]);
+  const searchTree = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return allTracks
+      .filter((t) => !q || `${t.title} ${t.artist}`.toLowerCase().includes(q))
+      .map((track) => ({ type: 'track', track }));
+  }, [allTracks, searchQuery]);
+  const roots = { BROWSE: tree, PLAYLIST: playlistTree, 'TAG LIST': tagTree, SEARCH: searchTree };
   const { path: listPath, sel: listSel } = nav[listScreen];
   const folderAt = (items, name) => items.find((i) => i.type === 'folder' && i.name === name);
-  const listItems = listPath.reduce((items, name) => folderAt(items, name)?.children ?? [], roots[listScreen]);
-  const breadcrumb = [listScreen === 'BROWSE' ? 'USB1' : 'PLAYLIST', ...listPath];
+  // TRACK FILTER compares with the sync master's track, or this deck's own.
+  const filterRef = sync.filterRef ?? { title: deck.track.title, bpm: deck.displayedBpm, key: deck.displayKey };
+  const listItems = listPath
+    .reduce((items, name) => folderAt(items, name)?.children ?? [], roots[listScreen])
+    .filter((item) => item.type !== 'track' || passesFilter(item.track, trackFilter, filterRef));
+  const breadcrumb = [
+    listScreen === 'SEARCH' ? `SEARCH ${searchQuery ? `"${searchQuery}"` : ''}` : LIST_TITLES[listScreen],
+    ...listPath,
+  ];
   const openPlaylistId = nav.PLAYLIST.path.length ? folderAt(playlistTree, nav.PLAYLIST.path[0])?.playlistId : null;
 
   const setNavFor = (screen, update) => setNav((n) => ({ ...n, [screen]: update(n[screen]) }));
@@ -160,6 +191,25 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir = 
       return;
     }
     activateBrowseItem(listSel);
+  };
+
+  // TAG TRACK/REMOVE: tags the highlighted track in a list (or the loaded
+  // track on the playback screen). On the TAG LIST it removes the track.
+  const handleTagTrack = () => {
+    const item = isListScreen ? listItems[listSel] : { type: 'track', track: deck.track };
+    if (item?.type !== 'track') return;
+    if (activeScreen === 'TAG LIST') {
+      tagList.remove(item.track.id);
+      setListSel((i) => Math.max(0, Math.min(i, listItems.length - 2)));
+      return;
+    }
+    const tagged = tagList.toggle(item.track.id);
+    setBrowseStatus(`${tagged ? 'TAGGED' : 'REMOVED'} ${item.track.title}`);
+  };
+
+  const handleSearchQuery = (q) => {
+    setSearchQuery(q);
+    setNavFor('SEARCH', () => ({ path: [], sel: 0 }));
   };
 
   const handleBack = () => {
@@ -231,6 +281,8 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir = 
     onSelectItem: handleBrowseSelect,
     onDeleteItem: handleDeleteTrack,
     loadedTrackId: deck.track.id,
+    taggedIds,
+    filterLabel: trackFilter.on ? describeFilter(trackFilter, filterRef) : null,
     status: browseStatus || deck.loadError,
     showPreview,
     onTogglePreview: () => setShowPreview((v) => !v),
@@ -288,6 +340,22 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir = 
                           idPrefix={idPrefix}
                         />
                       }
+                    />
+                  ) : activeScreen === 'TAG LIST' ? (
+                    <BrowseScreen {...listScreenProps} />
+                  ) : activeScreen === 'SEARCH' ? (
+                    <BrowseScreen
+                      {...listScreenProps}
+                      showPreview={false}
+                      onTogglePreview={null}
+                      footer={<SearchKeyboard query={searchQuery} onChange={handleSearchQuery} idPrefix={idPrefix} />}
+                    />
+                  ) : activeScreen === 'TRACK FILTER' ? (
+                    <TrackFilterScreen
+                      filter={trackFilter}
+                      onChange={(patch) => setTrackFilter((f) => ({ ...f, ...patch }))}
+                      reference={filterRef}
+                      idPrefix={idPrefix}
                     />
                   ) : activeScreen ? (
                     <View style={styles.placeholderScreen}>
@@ -365,7 +433,15 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir = 
                 </View>
               </View>
 
-              <ScreenSideControls onBack={handleBack} idPrefix={idPrefix}>
+              <ScreenSideControls
+                onBack={handleBack}
+                onTagTrack={handleTagTrack}
+                tagListOpen={activeScreen === 'TAG LIST'}
+                trackFilterOn={trackFilter.on}
+                onTrackFilter={() => setTrackFilter((f) => ({ ...f, on: !f.on }))}
+                onTrackFilterEdit={() => setActiveScreen('TRACK FILTER')}
+                idPrefix={idPrefix}
+              >
                 <BrowseRotary
                   onPrev={() => handleRotaryMove(-1)}
                   onNext={() => handleRotaryMove(1)}

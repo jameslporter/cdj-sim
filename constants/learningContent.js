@@ -32,7 +32,7 @@ export const LEARN_CONTENT = {
     title: 'TAG LIST',
     what: 'A temporary playlist of tracks you marked with TAG TRACK, shared by all linked players.',
     how: 'While playing, DJs tag tracks they might want next so they don\'t have to dig through the whole library again.',
-    note: 'Not simulated yet.',
+    tip: 'Highlight a track in BROWSE, press TAG TRACK, then open TAG LIST. Both decks share the same list. Press TAG TRACK here to remove the highlighted track.',
   },
   'screen-playlist': {
     title: 'PLAYLIST',
@@ -43,7 +43,12 @@ export const LEARN_CONTENT = {
     title: 'SEARCH',
     what: 'Opens an on-screen keyboard to find a track by typing part of its title or artist.',
     how: 'Handy when you know exactly which track you want and it\'s buried in a big library.',
-    note: 'Not simulated yet.',
+    tip: 'Type a few letters: the list narrows as you type. Turn the rotary and push it to load a result.',
+  },
+  'search-key': {
+    title: 'SEARCH KEYBOARD',
+    what: 'Type part of a title or artist. The list shows matching tracks as you type. ⌫ deletes a letter and CLEAR starts again.',
+    how: 'Two or three letters are usually enough to find a track.',
   },
   'screen-menu': {
     title: 'MENU / UTILITY',
@@ -58,14 +63,20 @@ export const LEARN_CONTENT = {
   'tag-track': {
     title: 'TAG TRACK / REMOVE',
     what: 'Adds the highlighted track to the Tag List, or removes it if it\'s already there.',
-    how: 'Tag tracks as ideas while you browse so you can come back to them in the next mix.',
-    note: 'The Tag List itself isn\'t simulated yet.',
+    how: 'Tag tracks as ideas while you browse so you can come back to them in the next mix. Tagged tracks show a pink dot in the lists.',
+    tip: 'On the playback screen it tags the loaded track.',
   },
   'track-filter': {
     title: 'TRACK FILTER / EDIT',
     what: 'Filters the browser to show only tracks that match conditions you set, such as a BPM range near the current track or a matching key. Holding it edits the conditions.',
     how: 'DJs use it to narrow a big library to tracks that will mix well with what\'s playing now.',
-    note: 'Not simulated yet.',
+    tip: 'Hold it to set a BPM range and key matching, then press it to switch the filter on. The list title shows FILTER while it\'s on.',
+    note: 'The real filter can also use rating, colour and My Tag from rekordbox. The sim\'s tracks don\'t have those, so it filters by BPM and key.',
+  },
+  filter: {
+    title: 'TRACK FILTER SETTINGS',
+    what: 'BPM keeps tracks within a percentage of the sync master\'s BPM (or this deck\'s, without a master). KEY keeps tracks in the same or a related key.',
+    how: '±6% is about what the tempo fader can bridge at its default range.',
   },
   shortcut: {
     title: 'SHORTCUT',
@@ -650,6 +661,8 @@ const ALIASES = [
   [/^beatfx-effect-(prev|next)$/, 'beatfx-effect'],
   [/^beatfx-beat-(up|down)$/, 'beatfx-beat'],
   [/^key-(up|down)$/, 'key-shift'],
+  [/^search-key(-.*)?$/, 'search-key'],
+  [/^filter-(onoff|bpm-.*|key-.*)$/, 'filter'],
   [/^jog-display$/, 'jog-wheel'],
   [/^master-iso-(hi|mid|low)$/, 'master-iso'],
 ];
