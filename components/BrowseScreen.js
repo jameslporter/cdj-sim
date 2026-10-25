@@ -4,6 +4,8 @@ import { cdj } from '../constants/theme';
 import { formatTime } from '../utils/format';
 import TouchWaveform from './TouchWaveform';
 import { waveSeed } from './Waveform';
+import LearnView from './LearnView';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 const ROW_HEIGHT = 34;
 
@@ -43,6 +45,8 @@ export default function BrowseScreen({
     scrollRef.current?.scrollTo?.({ y: Math.max(0, (selectedIndex - 3) * ROW_HEIGHT), animated: false });
   }, [selectedIndex]);
 
+  const previewToggleLearn = useLearnTarget(`${idPrefix}preview-toggle`);
+
   return (
     <View style={styles.display}>
       <View style={styles.titleBar}>
@@ -51,15 +55,17 @@ export default function BrowseScreen({
         </Text>
         {onTogglePreview ? (
           <Pressable
+            {...previewToggleLearn.props}
             testID={`${idPrefix}preview-toggle`}
             onPress={onTogglePreview}
-            style={[styles.touchKey, showPreview && styles.touchKeyOn]}
+            style={[styles.touchKey, showPreview && styles.touchKeyOn, previewToggleLearn.style]}
           >
             <Text style={[styles.touchKeyText, showPreview && styles.touchKeyTextOn]}>PREVIEW</Text>
           </Pressable>
         ) : null}
       </View>
       {header}
+      <LearnView learnId={`${idPrefix}browse-list`} style={styles.listWrap}>
       <ScrollView ref={scrollRef} style={styles.list} contentContainerStyle={styles.listContent}>
         {items.length === 0 ? (
           <Text style={styles.emptyText}>EMPTY</Text>
@@ -142,6 +148,7 @@ export default function BrowseScreen({
           })
         )}
       </ScrollView>
+      </LearnView>
       {status ? (
         <Text testID={`${idPrefix}browse-status`} style={styles.status} numberOfLines={2}>
           {status}
@@ -205,6 +212,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     paddingHorizontal: 10,
     paddingVertical: 6,
+  },
+  listWrap: {
+    flex: 1,
   },
   list: {
     flex: 1,

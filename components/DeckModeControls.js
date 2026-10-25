@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
 import DeckButton from './DeckButton';
 import Led from './Led';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 const DIRECTION_OPTIONS = [
   { value: 'FWD', label: 'FWD' },
@@ -12,8 +13,9 @@ const DIRECTION_OPTIONS = [
 // DIRECTION lever: a three-position switch. The knob sits in the slot at
 // the selected position.
 function DirectionLever({ value, onChange, testID }) {
+  const learn = useLearnTarget(testID);
   return (
-    <View style={styles.leverWrap}>
+    <View {...learn.props} style={[styles.leverWrap, learn.style]}>
       <Text style={styles.silk}>DIRECTION</Text>
       <View style={styles.leverBody}>
         <View style={styles.leverSlot} />

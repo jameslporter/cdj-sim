@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { useLearnTarget } from '../hooks/useLearningMode';
 import { cdj } from '../constants/theme';
 
 const LED_COLORS = {
@@ -28,10 +29,12 @@ function DeckButton({
   children,
   testID,
 }) {
+  const learn = useLearnTarget(testID);
   const ledColor = LED_COLORS[led] ?? led;
 
   return (
     <Pressable
+      {...learn.props}
       testID={testID}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -47,6 +50,7 @@ function DeckButton({
         pressed && styles.pressed,
         disabled && styles.disabled,
         style,
+        learn.style,
       ]}
     >
       {children ?? (

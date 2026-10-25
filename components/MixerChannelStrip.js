@@ -5,6 +5,8 @@ import Knob from './Knob';
 import ThreeWaySwitch from './ThreeWaySwitch';
 import VerticalFader from './VerticalFader';
 import VuMeter from './VuMeter';
+import { useLearnTarget } from '../hooks/useLearningMode';
+import LearnView from './LearnView';
 
 const ASSIGN_OPTIONS = [
   { value: 'A', label: 'A' },
@@ -41,11 +43,18 @@ function MixerChannelStrip({
   const handleFaderChange = useCallback((v) => onUpdateChannel(index, { fader: v }), [onUpdateChannel, index]);
   const handleAssignChange = useCallback((v) => onUpdateChannel(index, { assign: v }), [onUpdateChannel, index]);
 
+  const inputLearn = useLearnTarget(`${idPrefix}input`);
+
   return (
     <View style={styles.strip}>
       <Text style={styles.channelNumber}>{channelNumber}</Text>
 
-      <Pressable testID={`${idPrefix}input`} style={styles.inputButton} onPress={handleInputCycle}>
+      <Pressable
+        {...inputLearn.props}
+        testID={`${idPrefix}input`}
+        style={[styles.inputButton, inputLearn.style]}
+        onPress={handleInputCycle}
+      >
         <Text style={styles.inputText}>{inputLabel}</Text>
       </Pressable>
 
@@ -81,7 +90,9 @@ function MixerChannelStrip({
       </Pressable>
 
       <View style={styles.faderRow}>
-        <VuMeter level={level} height={180} width={14} />
+        <LearnView learnId={`${idPrefix}meter`}>
+          <VuMeter level={level} height={180} width={14} />
+        </LearnView>
         <VerticalFader
           testID={`${idPrefix}fader`}
           value={channel.fader}

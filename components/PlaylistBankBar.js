@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
+import { useLearnTarget } from '../hooks/useLearningMode';
+import LearnView from './LearnView';
 
 // The Playlist Bank strip across the top of the PLAYLIST screen. An empty
 // bank's icon is grey: touch it to register the highlighted playlist. A
@@ -14,8 +16,9 @@ export default function PlaylistBankBar({
   onToggleDeregister,
   idPrefix = '',
 }) {
+  const deregisterLearn = useLearnTarget(`${idPrefix}playlist-bank-deregister`);
   return (
-    <View style={styles.bar}>
+    <LearnView learnId={`${idPrefix}playlist-bank-bar`} style={styles.bar}>
       {slots.map((playlistId, i) => {
         const playlist = playlistId ? playlistsById[playlistId] : null;
         const active = playlist && playlist.id === activePlaylistId;
@@ -41,13 +44,14 @@ export default function PlaylistBankBar({
         );
       })}
       <Pressable
+        {...deregisterLearn.props}
         testID={`${idPrefix}playlist-bank-deregister`}
         onPress={onToggleDeregister}
-        style={[styles.deregister, deregistering && styles.deregisterOn]}
+        style={[styles.deregister, deregistering && styles.deregisterOn, deregisterLearn.style]}
       >
         <Text style={[styles.deregisterText, deregistering && styles.deregisterTextOn]}>✕</Text>
       </Pressable>
-    </View>
+    </LearnView>
   );
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 const SIZE = 300;
 const RING = SIZE - 14;
@@ -41,11 +42,13 @@ export default function JogWheel({ isPlaying, pitch, reverse, vinylMode, held, o
   });
 
   const ringColor = held ? cdj.ledOrange : cdj.jogRing;
+  const learn = useLearnTarget(`${idPrefix}jog-wheel`);
 
   return (
     <Pressable
+      {...learn.props}
       testID={`${idPrefix}jog-wheel`}
-      style={styles.bezel}
+      style={[styles.bezel, learn.style]}
       onPressIn={() => vinylMode && onHoldChange(true)}
       onPressOut={() => vinylMode && onHoldChange(false)}
     >

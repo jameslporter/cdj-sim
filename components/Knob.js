@@ -2,6 +2,7 @@ import { memo, useRef } from 'react';
 import { PanResponder, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
 import { clamp } from '../utils/format';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 const SWEEP_DEG = 270;
 const START_DEG = -135;
@@ -36,11 +37,12 @@ function Knob({
     })
   ).current;
 
+  const learn = useLearnTarget(testID);
   const ratio = (value - min) / (max - min);
   const rotation = START_DEG + ratio * SWEEP_DEG;
 
   return (
-    <View style={styles.wrap} testID={testID} {...panResponder.panHandlers}>
+    <View style={[styles.wrap, learn.style]} testID={testID} {...learn.withHandlers(panResponder.panHandlers)}>
       <View style={[styles.knob, { width: size, height: size, borderRadius: size / 2 }]}>
         {bipolar ? <View style={styles.centerNotch} /> : null}
         <View style={[styles.indicator, { transform: [{ rotate: `${rotation}deg` }] }]}>

@@ -2,6 +2,7 @@ import { memo, useRef } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import { colors } from '../constants/theme';
 import { clamp } from '../utils/format';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 function valueToY(value, min, max, trackHeight, thumbHeight) {
   return ((max - value) / (max - min)) * (trackHeight - thumbHeight);
@@ -49,10 +50,11 @@ function VerticalFader({
     })
   ).current;
 
+  const learn = useLearnTarget(testID);
   const thumbY = valueToY(value, min, max, trackHeight, thumbHeight);
 
   return (
-    <View style={[styles.track, { width: trackWidth, height: trackHeight }, trackStyle]}>
+    <View {...learn.props} style={[styles.track, { width: trackWidth, height: trackHeight }, trackStyle, learn.style]}>
       {centerTick ? <View style={[styles.centerTick, { width: trackWidth - 16 }, centerTickStyle]} /> : null}
       <View
         testID={testID}

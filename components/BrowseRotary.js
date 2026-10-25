@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
+import LearnView from './LearnView';
 
 // The rotary selector: turn (▲/▼) to move through the list, push to load.
 export default function BrowseRotary({ onPrev, onNext, onLoad, idPrefix = '' }) {
   return (
-    <View style={styles.container}>
+    <LearnView learnId={`${idPrefix}browse-load`} style={styles.container}>
       <Pressable
         testID={`${idPrefix}browse-prev`}
         style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}
@@ -29,7 +30,7 @@ export default function BrowseRotary({ onPrev, onNext, onLoad, idPrefix = '' }) 
       >
         <Text style={styles.arrowText}>▼</Text>
       </Pressable>
-    </View>
+    </LearnView>
   );
 }
 

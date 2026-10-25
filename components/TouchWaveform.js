@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { cdj, hotCueColors } from '../constants/theme';
 import { clamp } from '../utils/format';
 import Waveform from './Waveform';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 // A waveform you can touch: used for Touch Preview in the track lists and
 // for Touch Cue / needle search on the playback screen.
@@ -28,6 +29,7 @@ export default function TouchWaveform({
   testID,
   style,
 }) {
+  const learn = useLearnTarget(testID);
   const widthRef = useRef(1);
   const draggingRef = useRef(false);
 
@@ -54,8 +56,9 @@ export default function TouchWaveform({
 
   return (
     <View
+      {...learn.props}
       testID={testID}
-      style={[styles.touchArea, style]}
+      style={[styles.touchArea, style, learn.style]}
       onLayout={(e) => {
         widthRef.current = e.nativeEvent.layout.width || 1;
       }}

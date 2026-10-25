@@ -1,10 +1,12 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 function ThreeWaySwitch({ options, value, onChange, vertical = false, testID }) {
+  const learn = useLearnTarget(testID);
   return (
-    <View style={vertical ? styles.columnGroup : styles.rowGroup}>
+    <View {...learn.props} style={[vertical ? styles.columnGroup : styles.rowGroup, learn.style]}>
       {options.map((opt) => {
         const active = opt.value === value;
         return (
