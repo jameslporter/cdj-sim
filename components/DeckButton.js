@@ -27,6 +27,7 @@ function DeckButton({
   disabled,
   style,
   labelStyle,
+  sublabelStyle,
   children,
   testID,
 }) {
@@ -58,7 +59,7 @@ function DeckButton({
       {children ?? (
         <>
           <Text style={[styles.label, active && { color: ledColor }, labelStyle]}>{label}</Text>
-          {sublabel ? <Text style={[styles.sublabel, active && { color: `${ledColor}aa` }]}>{sublabel}</Text> : null}
+          {sublabel ? <Text style={[styles.sublabel, active && { color: `${ledColor}aa` }, sublabelStyle]}>{sublabel}</Text> : null}
         </>
       )}
     </Pressable>

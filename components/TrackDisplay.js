@@ -4,7 +4,10 @@ import { BEAT_JUMP_COUNTS } from '../constants/theme';
 import { cdj } from '../constants/theme';
 import { formatTime } from '../utils/format';
 import TouchWaveform from './TouchWaveform';
-import { waveSeed, ZoomWaveform } from './Waveform';
+import { waveSeed } from './Waveform';
+import ZoomWaveform from './ZoomWaveform';
+import PhaseMeter from './PhaseMeter';
+import useLivePosition from '../hooks/useLivePosition';
 import { useLearnTarget } from '../hooks/useLearningMode';
 import LearnView from './LearnView';
 
@@ -14,6 +17,13 @@ export default function TrackDisplay({
   track,
   bpm,
   pitch,
+  synced,
+  syncOn,
+  isMaster,
+  isPlaying,
+  getPosition,
+  getMasterBeatPos,
+  memoryCues,
   tempoReset,
   autoCue,
   beatJumpCount,
@@ -45,6 +55,15 @@ export default function TrackDisplay({
   const timeLearn = useLearnTarget(`${idPrefix}time-toggle`);
   const jumpLearn = useLearnTarget(`${idPrefix}beatjump-count`);
   const [jumpPanelOpen, setJumpPanelOpen] = useState(false);
+
+  // Live position for the scrolling waveform, phase meter and countdown.
+  const position = useLivePosition(getPosition, isPlaying || masterRunning(getMasterBeatPos), elapsed);
+  const beat = 60 / (track.bpm || 120);
+  const firstBeat = track.firstBeat || 0;
+  const beatPos = (position - firstBeat) / beat;
+  const masterBeatPos = getMasterBeatPos ? getMasterBeatPos() : null;
+  const countdown = beatCountdown(position, memoryCues, beat);
+  const loopTimes = loopRange ? { start: loopRange.startRatio * duration, end: loopRange.endRatio * duration } : null;
 
   return (
     <View style={styles.display}>
@@ -105,8 +124,28 @@ export default function TrackDisplay({
       ) : null}
 
       <LearnView testID={`${idPrefix}display-zoom`} learnId={`${idPrefix}display-zoom`}>
-        <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} seed={seed} />
+        <ZoomWaveform
+          position={position}
+          duration={duration}
+          bpm={track.bpm}
+          firstBeat={firstBeat}
+          peaks={track.peaks}
+          seed={seed}
+          loop={loopTimes}
+          hotCues={hotCues}
+          memoryCues={memoryCues}
+        />
       </LearnView>
+
+      <View style={styles.phaseRow}>
+        <LearnView testID={`${idPrefix}phase-meter`} learnId={`${idPrefix}phase-meter`} style={styles.phaseWrap}>
+          <PhaseMeter beatPos={beatPos} masterBeatPos={isMaster ? null : masterBeatPos} isMaster={isMaster} />
+        </LearnView>
+        <LearnView testID={`${idPrefix}beat-countdown`} learnId={`${idPrefix}beat-countdown`} style={styles.countdown}>
+          <Text style={styles.countdownValue}>{countdown}</Text>
+          <Text style={styles.countdownUnit}>BARS</Text>
+        </LearnView>
+      </View>
 
       {/* Touch the overview: needle search while paused, Touch Cue
           (preview that spot) while playing. */}
@@ -152,7 +191,7 @@ export default function TrackDisplay({
             <Text style={styles.metricLabel}>TEMPO</Text>
             <Text style={styles.rangeTag}>{pitchRange === 100 ? 'WIDE' : `±${pitchRange}`}</Text>
           </View>
-          <Text style={styles.tempoValue}>
+          <Text style={[styles.tempoValue, synced && styles.tempoUnlinked]}>
             {pitch > 0 ? '+' : pitch < 0 ? '' : ' '}
             {pitch.toFixed(2)}
             <Text style={styles.unit}>%</Text>
@@ -160,14 +199,19 @@ export default function TrackDisplay({
           <View style={styles.badgeRow}>
             <Text style={[styles.badge, masterTempo && styles.badgeOnRed]}>MT</Text>
             <Text style={[styles.badge, quantize && styles.badgeOnRed]}>Q</Text>
+            {syncOn ? <Text style={[styles.badge, styles.badgeOnBlue]}>SYNC</Text> : null}
             {tempoReset ? <Text style={[styles.badge, styles.badgeOnGreen]}>RESET</Text> : null}
           </View>
         </LearnView>
 
         <View style={styles.divider} />
 
-        <LearnView testID={`${idPrefix}display-bpm`} learnId={`${idPrefix}display-bpm`} style={styles.bpmBlock}>
-          <Text style={styles.metricLabel}>BPM</Text>
+        <LearnView
+          testID={`${idPrefix}display-bpm`}
+          learnId={`${idPrefix}display-bpm`}
+          style={[styles.bpmBlock, isMaster && styles.bpmMaster]}
+        >
+          <Text style={[styles.metricLabel, isMaster && styles.masterLabel]}>{isMaster ? 'MASTER BPM' : 'BPM'}</Text>
           <Text style={styles.bpmValue}>
             {bpmWhole}
             <Text style={styles.bpmFrac}>.{bpmFrac ?? '00'}</Text>
@@ -178,12 +222,68 @@ export default function TrackDisplay({
   );
 }
 
+// Is the master deck's position moving? (Then this deck's phase meter must
+// keep redrawing even while this deck is paused.)
+function masterRunning(getMasterBeatPos) {
+  return Boolean(getMasterBeatPos);
+}
+
+// Bars and beats to the next memory cue, as the CDJ shows it ("16.4" = 16
+// bars and 4 beats). "--.-" when there's no memory cue ahead.
+function beatCountdown(position, memoryCues, beat) {
+  const next = (memoryCues || []).find((c) => c.time > position + 0.01);
+  if (!next) return '--.-';
+  const beats = Math.ceil((next.time - position) / beat - 0.001);
+  return `${Math.floor(beats / 4)}.${beats % 4}`;
+}
+
 // Beat counts as the CDJ shows them: 1/2, 1, 2 … 64.
 function formatBeats(count) {
   return count < 1 ? `1/${Math.round(1 / count)}` : String(count);
 }
 
 const styles = StyleSheet.create({
+  phaseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 8,
+  },
+  phaseWrap: {
+    flex: 1,
+  },
+  countdown: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+  },
+  countdownValue: {
+    color: cdj.screenText,
+    fontSize: 11,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  countdownUnit: {
+    color: cdj.screenLabel,
+    fontSize: 7,
+    fontWeight: '800',
+  },
+  bpmMaster: {
+    borderWidth: 1,
+    borderColor: cdj.ledOrange,
+    borderRadius: 3,
+    paddingHorizontal: 4,
+  },
+  masterLabel: {
+    color: cdj.ledOrange,
+  },
+  tempoUnlinked: {
+    color: cdj.screenTextDim,
+  },
+  badgeOnBlue: {
+    color: cdj.ledBlue,
+    borderColor: cdj.ledBlue,
+  },
   jumpValue: {
     color: cdj.screenText,
     fontSize: 11,

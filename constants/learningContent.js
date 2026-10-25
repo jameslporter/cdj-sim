@@ -98,8 +98,20 @@ export const LEARN_CONTENT = {
   },
   'display-zoom': {
     title: 'ZOOMED WAVEFORM',
-    what: 'A close-up of the music around the playhead (the line in the middle). Tall parts are loud, bass-heavy beats; thin parts are breakdowns.',
-    how: 'DJs read it to see what\'s coming: the next drop, a breakdown, or where the beats line up for a cue point.',
+    what: 'A close-up of the music around the playhead (the red line in the middle), scrolling at a fixed speed. The thin white lines are the beat grid, one per beat; the red lines mark the first beat of each bar. Coloured marks at the top are hot cues, red triangles at the bottom are memory cues.',
+    how: 'DJs read it to see what\'s coming: the next drop, a breakdown, or where the beats line up for a cue point. With two decks playing, compare where the grid lines cross the playhead to check your beatmatch.',
+  },
+  'phase-meter': {
+    title: 'PHASE METER',
+    what: 'Four boxes for the four beats of a bar. The white box is the beat this deck is on; the orange outline is the master deck\'s beat. The small bar on the right shows how far apart the beats are: centred and green means locked.',
+    how: 'After matching BPMs, nudge the jog until the white box and orange outline sit together and the needle is centred. Then the two tracks are in time, bar for bar.',
+    tip: 'Play deck A, set it as MASTER, play deck B and watch its phase meter. Nudge B\'s jog ring to line them up.',
+  },
+  'beat-countdown': {
+    title: 'BEAT COUNTDOWN',
+    what: 'Bars and beats left until the next memory cue, so "8.2" means 8 bars and 2 beats.',
+    how: 'DJs mark the end of an intro or the start of an outro with a memory cue, then glance here to time the mix to the phrase.',
+    tip: 'Press MEMORY a little ahead of the playhead, go back, and watch it count down.',
   },
   'overview-waveform': {
     title: 'OVERVIEW WAVEFORM',
@@ -263,6 +275,17 @@ export const LEARN_CONTENT = {
   },
 
   // ── Deck: tempo ───────────────────────────────────────────────────────
+  'beat-sync': {
+    title: 'BEAT SYNC / INST DOUBLES',
+    what: 'Locks this deck\'s tempo and beats to the MASTER deck. The tempo fader stops having an effect while it\'s on (the TEMPO % turns grey). Hold it for INST DOUBLES, which loads the other deck\'s track at the same spot.',
+    how: 'Sync takes care of beatmatching so you can focus on EQ, phrasing and effects. Learn to beatmatch by ear too, in case sync is off or the beat grid is wrong.',
+    tip: 'Play deck A, then press BEAT SYNC on deck B and play it: the BPMs match and the beats line up.',
+  },
+  'sync-master': {
+    title: 'MASTER',
+    what: 'Makes this deck the tempo master. Decks with BEAT SYNC on follow its BPM and beats. The master\'s BPM is framed in orange.',
+    how: 'The master is usually the track playing to the crowd. When you finish a mix, hand MASTER to the new track so the next one follows it.',
+  },
   'tempo-range': {
     title: 'TEMPO RANGE',
     what: 'Sets how far the tempo fader can change the speed: ±6%, ±10%, ±16% or WIDE (±100%).',

@@ -64,7 +64,7 @@ function importSummary(result) {
 
 const LIST_SCREENS = ['BROWSE', 'PLAYLIST'];
 
-export default function CdjDeck({ deck, library, label, idPrefix }) {
+export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
   const { preview } = deck;
   const bank = usePlaylistBank(`cdj-sim:playlist-bank:${idPrefix}`);
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
@@ -302,6 +302,13 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                       track={deck.track}
                       bpm={deck.displayedBpm.toFixed(2)}
                       pitch={deck.effectivePitch}
+                      synced={deck.synced}
+                      syncOn={sync.syncOn}
+                      isMaster={sync.isMaster}
+                      isPlaying={deck.isPlaying}
+                      getPosition={deck.getPosition}
+                      getMasterBeatPos={sync.getMasterBeatPos}
+                      memoryCues={deck.memoryCues}
                       tempoReset={deck.tempoReset}
                       autoCue={deck.autoCue}
                       beatJumpCount={deck.beatJumpCount}
@@ -487,6 +494,11 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 onToggleMasterTempo={() => deck.setMasterTempo((m) => !m)}
                 tempoReset={deck.tempoReset}
                 onReset={deck.toggleTempoReset}
+                syncOn={sync.syncOn}
+                isMaster={sync.isMaster}
+                onSync={sync.onSync}
+                onMaster={sync.onMaster}
+                onInstantDoubles={sync.onInstantDoubles}
                 idPrefix={idPrefix}
               />
             </View>

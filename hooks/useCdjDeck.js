@@ -28,8 +28,30 @@ export function autoCueTime(track) {
   return track?.firstBeat || 0;
 }
 
-// `tracks` is the list TRACK SEARCH (|◀◀ / ▶▶|) steps through.
-export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
+// BEAT SYNC: the multiple of the master's BPM (half, same or double) that
+// needs the smallest tempo change, like the CDJ's automatic half/double sync.
+function syncMultiple(masterBpm, trackBpm) {
+  return [0.5, 1, 2].reduce((best, m) =>
+    Math.abs((masterBpm * m) / trackBpm - 1) < Math.abs((masterBpm * best) / trackBpm - 1) ? m : best
+  );
+}
+
+// Phase error (in beats, -0.5…0.5) between two beat positions.
+function phaseError(target, current) {
+  const d = (target - current) % 1;
+  return d >= 0.5 ? d - 1 : d < -0.5 ? d + 1 : d;
+}
+
+// How far out of phase a synced deck may drift before it's pulled back.
+const SYNC_TOLERANCE_BEATS = 0.04;
+
+/**
+ * One CDJ.
+ *  - `tracks` is the list TRACK SEARCH (|◀◀ / ▶▶|) steps through.
+ *  - `syncBpm`: the master deck's BPM while BEAT SYNC follows it, else null.
+ *  - `getMasterBeatPos()`: the master deck's live beat position, for phase.
+ */
+export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMasterBeatPos = null } = {}) {
   const [track, setTrack] = useState(DEMO_TRACKS[0]);
   const [audioSource, setAudioSource] = useState(DEMO_TRACKS[0].file);
   const [loadError, setLoadError] = useState(null);
@@ -79,8 +101,11 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   const status = useAudioPlayerStatus(player);
 
   const duration = (status.isLoaded && status.duration) || track.duration || 1;
+  // BEAT SYNC overrides the fader (it's "unlinked" until sync is off), and
   // TEMPO RESET plays at the original speed whatever the fader says.
-  const effectivePitch = tempoReset ? 0 : pitch;
+  const synced = syncBpm != null && track.bpm > 0;
+  const syncMult = synced ? syncMultiple(syncBpm, track.bpm) : 1;
+  const effectivePitch = synced ? ((syncBpm * syncMult) / track.bpm - 1) * 100 : tempoReset ? 0 : pitch;
   const audioRate = 1 + effectivePitch / 100;
 
   // Loading a track creates a new player, so remember the mixer's volume and
@@ -97,6 +122,22 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   // 60 / the track's original BPM no matter where the tempo fader sits.
   const beatDuration = 60 / track.bpm;
   const shouldPlay = isPlaying && !jog.scratching;
+
+  // Live position in track seconds (the player's own clock, or the jog's).
+  const getPosition = jog.getPosition;
+  // Live position in beats from the first beat on the grid (beat 0 = a bar's
+  // first beat).
+  const getBeatPos = () => (getPosition() - (track.firstBeat || 0)) / beatDuration;
+
+  // Where `t` would need to be for this deck's beats to line up with the
+  // master's (BEAT SYNC). Returns `t` when there's nothing to sync to.
+  const phaseAlignedTime = (t) => {
+    if (!synced || !getMasterBeatPos) return t;
+    const master = getMasterBeatPos();
+    if (master == null) return t;
+    const ours = (t - (track.firstBeat || 0)) / beatDuration;
+    return clamp(t + phaseError(master * syncMult, ours) * beatDuration, 0, duration);
+  };
 
   // Snap to a track's beat grid (by default the loaded track's).
   const quantizeTime = (t, forTrack = track) => {
@@ -136,6 +177,27 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     player.shouldCorrectPitch = masterTempo;
     player.setPlaybackRate(audioRate);
   }, [audioRate, masterTempo, player]);
+
+  // BEAT SYNC keeps the beats locked: if the deck drifts out of phase (a
+  // jog nudge, a seek, audio clock wobble) it's pulled back in. A seek takes
+  // the player a moment to resume, so it lands a little behind; the deck
+  // learns that delay and seeks that much further ahead next time.
+  const seekLeadRef = useRef(0);
+  const syncRef = useRef(null);
+  syncRef.current = { phaseAlignedTime, getPosition, beatDuration, player };
+  useEffect(() => {
+    if (!synced || !isPlaying || jog.scratching) return undefined;
+    const id = setInterval(() => {
+      const { phaseAlignedTime: align, getPosition: pos, beatDuration: beat, player: p } = syncRef.current;
+      const now = pos();
+      const error = align(now) - now;
+      if (Math.abs(error) <= SYNC_TOLERANCE_BEATS * beat) return;
+      // Still behind after the last correction: lead by more next time.
+      seekLeadRef.current = clamp(seekLeadRef.current + error * 0.8, 0, 0.3);
+      p.seekTo(now + error + seekLeadRef.current).catch(() => {});
+    }, 1000);
+    return () => clearInterval(id);
+  }, [synced, isPlaying, jog.scratching]);
 
   // Loop-window watch: seek back to the loop start once playback reaches loop end.
   // (Real audio can't play backward, so this only handles the forward case —
@@ -183,6 +245,12 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     if (cueHoldRef.current) {
       cueHoldRef.current.keepPlaying = true;
       return;
+    }
+    // A synced deck starts in phase with the master.
+    if (!isPlaying && synced) {
+      const aligned = phaseAlignedTime(getPosition());
+      player.seekTo(aligned).catch(() => {});
+      setPhantomElapsed(aligned);
     }
     // Pausing leaves the cue point where it is, as on the real deck.
     setIsPlaying((prev) => {
@@ -410,8 +478,9 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   };
 
   // Load a track object from the library onto this deck. With Auto Cue on
-  // it parks just before the first sound; `play` starts it from there.
-  const handleLoadTrack = async (nextTrack, { play = false } = {}) => {
+  // it parks just before the first sound; `at` starts somewhere else instead
+  // (INST DOUBLES), and `play` starts it playing.
+  const handleLoadTrack = async (nextTrack, { play = false, at = null } = {}) => {
     if (!nextTrack) return;
     preview.stop();
     gateRef.current = null;
@@ -431,9 +500,10 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     setIsPlaying(false);
     cueHoldRef.current = null;
     const cue = autoCue ? autoCueTime(nextTrack) : 0;
-    setPhantomElapsed(cue);
+    const start = at ?? cue;
+    setPhantomElapsed(start);
     setCuePoint(cue);
-    setPendingStart({ source, time: cue, play });
+    setPendingStart({ source, time: start, play });
     setLoop(EMPTY_LOOP);
     setMemoryCues([]);
     setMemoryCueIndex(-1);
@@ -501,6 +571,14 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     elapsed,
     pitch,
     effectivePitch,
+    synced,
+    getPosition,
+    getBeatPos,
+    alignToMaster: () => {
+      const aligned = phaseAlignedTime(getPosition());
+      player.seekTo(aligned).catch(() => {});
+      setPhantomElapsed(aligned);
+    },
     tempoReset,
     autoCue,
     cuePoint,
