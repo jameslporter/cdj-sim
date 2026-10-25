@@ -1,26 +1,48 @@
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { cdj, hotCueColors } from '../constants/theme';
-import { WaveColumn, waveSample } from './Waveform';
+import { WaveColumn, WaveformColorContext, waveSample } from './Waveform';
 
 const COLUMNS = 96;
-// Seconds of track shown across the zoomed waveform (the CDJ's default zoom
-// shows about four bars of a house track).
+// Seconds of track shown across the zoomed waveform by default (about four
+// bars of a house track). The rotary selector zooms in and out.
 export const ZOOM_WINDOW_SECONDS = 8;
 
-// Loudness at track time `t`. Imported tracks use their analysed peaks;
-// demo tracks use a synthetic envelope that pulses on the beat grid, so the
-// kicks you see line up with the grid lines like a real analysed track.
-function ampAt(t, { duration, peaks, seed, firstBeat, beat }) {
-  if (t < 0 || t > duration) return 0;
-  if (peaks?.length) return peaks[Math.min(peaks.length - 1, Math.floor((t / duration) * peaks.length))];
-  return waveSample(((t - firstBeat) / beat) * 4 + seed);
+// Loudness and band levels at track time `t`. Once the deck has measured the
+// loaded track's fine `detail` it's used; until then, imported tracks use
+// their stored levels and demo tracks a synthetic envelope that pulses on
+// the beat grid.
+function columnAt(t, span, { duration, peaks, bands, detail, seed, firstBeat, beat }) {
+  if (t < 0 || t > duration) return { amp: 0, bands: null };
+  if (detail) {
+    // Loudest of the detail slices this column covers.
+    const n = detail.peaks.length;
+    const from = Math.min(n - 1, Math.floor(t * detail.rate));
+    const to = Math.min(n, Math.max(from + 1, Math.floor((t + span) * detail.rate)));
+    const c = { amp: 0, bands: { low: 0, mid: 0, high: 0 } };
+    for (let i = from; i < to; i += 1) {
+      c.amp = Math.max(c.amp, detail.peaks[i]);
+      c.bands.low = Math.max(c.bands.low, detail.low[i]);
+      c.bands.mid = Math.max(c.bands.mid, detail.mid[i]);
+      c.bands.high = Math.max(c.bands.high, detail.high[i]);
+    }
+    return c;
+  }
+  if (peaks?.length) {
+    const i = Math.min(peaks.length - 1, Math.floor((t / duration) * peaks.length));
+    return {
+      amp: peaks[i],
+      bands: bands?.low?.length ? { low: bands.low[i], mid: bands.mid[i], high: bands.high[i] } : null,
+    };
+  }
+  return { amp: waveSample(((t - firstBeat) / beat) * 4 + seed), bands: null };
 }
 
-function Columns({ firstCol, colSeconds, height, info }) {
+function Columns({ firstCol, colSeconds, height, info, mode }) {
   const cols = [];
   for (let k = 0; k <= COLUMNS; k += 1) {
-    cols.push(<WaveColumn key={k} amp={ampAt((firstCol + k) * colSeconds, info)} height={height} dim={false} />);
+    const c = columnAt((firstCol + k) * colSeconds, colSeconds, info);
+    cols.push(<WaveColumn key={k} amp={c.amp} bands={c.bands} height={height} mode={mode} dim={false} />);
   }
   return cols;
 }
@@ -37,32 +59,40 @@ export default function ZoomWaveform({
   bpm,
   firstBeat = 0,
   peaks,
+  bands,
+  detail,
   seed = 0,
   loop,
   hotCues,
   memoryCues,
   height = 76,
+  windowSeconds = ZOOM_WINDOW_SECONDS,
+  gridAdjust = false,
 }) {
   const [width, setWidth] = useState(1);
+  const mode = useContext(WaveformColorContext);
   const beat = 60 / (bpm || 120);
-  const start = position - ZOOM_WINDOW_SECONDS / 2;
-  const xOf = (t) => (t - start) / ZOOM_WINDOW_SECONDS; // 0–1 across the view
+  const start = position - windowSeconds / 2;
+  const xOf = (t) => (t - start) / windowSeconds; // 0–1 across the view
 
   // Columns sit on a fixed grid of track time and the row slides by the
   // leftover fraction, so the waveform scrolls without shimmering.
-  const colSeconds = ZOOM_WINDOW_SECONDS / COLUMNS;
+  const colSeconds = windowSeconds / COLUMNS;
   const firstCol = Math.floor(start / colSeconds);
-  const shift = ((firstCol * colSeconds - start) / ZOOM_WINDOW_SECONDS) * width;
-  const info = { duration, peaks, seed, firstBeat, beat };
+  const shift = ((firstCol * colSeconds - start) / windowSeconds) * width;
+  const info = { duration, peaks, bands, detail, seed, firstBeat, beat };
 
   const grid = [];
   const firstIdx = Math.ceil((start - firstBeat) / beat);
-  for (let b = firstIdx; firstBeat + b * beat <= start + ZOOM_WINDOW_SECONDS; b += 1) {
+  for (let b = firstIdx; firstBeat + b * beat <= start + windowSeconds; b += 1) {
     const t = firstBeat + b * beat;
     if (t < 0 || t > duration) continue;
     const downbeat = ((b % 4) + 4) % 4 === 0;
     grid.push(
-      <View key={b} style={[styles.gridLine, downbeat && styles.gridBar, { left: `${xOf(t) * 100}%` }]} />
+      <View
+        key={b}
+        style={[styles.gridLine, downbeat && styles.gridBar, gridAdjust && !downbeat && styles.gridAdjust, { left: `${xOf(t) * 100}%` }]}
+      />
     );
   }
 
@@ -93,7 +123,7 @@ export default function ZoomWaveform({
       <View
         style={[styles.bars, { width: (width * (COLUMNS + 1)) / COLUMNS, transform: [{ translateX: shift }] }]}
       >
-        <Columns firstCol={firstCol} colSeconds={colSeconds} height={height} info={info} />
+        <Columns firstCol={firstCol} colSeconds={colSeconds} height={height} info={info} mode={mode} />
       </View>
       {grid}
       {loopStyle ? <View style={[styles.loopRegion, loopStyle]} /> : null}
@@ -127,6 +157,11 @@ const styles = StyleSheet.create({
   gridBar: {
     width: 2,
     backgroundColor: '#ff3b30',
+  },
+  gridAdjust: {
+    // Grid Adjust highlights the grid so you can see it against the kicks.
+    opacity: 1,
+    backgroundColor: '#ffd23f',
   },
   cueLine: {
     position: 'absolute',

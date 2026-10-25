@@ -1,9 +1,11 @@
 import { memo, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BEAT_FX_ASSIGNS } from '../hooks/useMixerState';
 import useBlink from '../hooks/useBlink';
 import { colors } from '../constants/theme';
 import { BEAT_FX, beatFxInfo, formatBeat } from '../utils/beatFx';
+import { FADER_CURVES, faderToGain } from '../utils/mixerEngine';
+import { useLearnTarget } from '../hooks/useLearningMode';
 import CdjButton from './CdjButton';
 import HoldPressable from './HoldPressable';
 import Knob from './Knob';
@@ -23,7 +25,21 @@ function timeToKnob(t, [lo, hi], unit) {
   return Math.log(Math.max(lo, t) / lo) / Math.log(hi / lo);
 }
 
-function MixerBeatFxSection({ beatFx, bpm, onChange }) {
+// The fader curve key's little graph: volume against fader travel.
+function CurveIcon({ curve }) {
+  return (
+    <View style={styles.curveIcon}>
+      {[0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1].map((x) => (
+        <View key={x} style={[styles.curveBar, { height: Math.max(1, (faderToGain(x, curve) / 1.25) * 14) }]} />
+      ))}
+    </View>
+  );
+}
+
+function MixerBeatFxSection({ beatFx, bpm, onChange, faderCurve = 2, onChangeMaster }) {
+  const curveLearn = useLearnTarget('mixer-fader-curve');
+  const cycleCurve = () =>
+    onChangeMaster?.({ faderCurve: FADER_CURVES[(FADER_CURVES.indexOf(faderCurve) + 1) % FADER_CURVES.length] });
   const info = beatFxInfo(beatFx.effect);
   const beat = beatFx.beats[info.name] ?? info.defaultBeat;
   const tempo = bpm || 128;
@@ -82,7 +98,18 @@ function MixerBeatFxSection({ beatFx, bpm, onChange }) {
       <View style={styles.display} testID="mixer-beatfx-display">
         <View style={styles.displayTop}>
           <Text style={styles.displayEffect}>{info.name}</Text>
-          <Text style={styles.displayAssign}>{beatFx.assign}</Text>
+          <View style={styles.displayRight}>
+            <Pressable
+              {...curveLearn.props}
+              testID="mixer-fader-curve"
+              accessibilityLabel={`Channel fader curve ${faderCurve}`}
+              onPress={cycleCurve}
+              style={[styles.curveKey, curveLearn.style]}
+            >
+              <CurveIcon curve={faderCurve} />
+            </Pressable>
+            <Text style={styles.displayAssign}>{beatFx.assign}</Text>
+          </View>
         </View>
         <View style={styles.displayTop}>
           <Text style={styles.displayBpm}>
@@ -208,6 +235,28 @@ const styles = StyleSheet.create({
     borderColor: colors.panelBorder,
     padding: 6,
     gap: 4,
+  },
+  displayRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  curveKey: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: '#4a5560',
+  },
+  curveIcon: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 1,
+    height: 14,
+  },
+  curveBar: {
+    width: 2,
+    backgroundColor: '#9fd8ff',
   },
   displayTop: {
     flexDirection: 'row',

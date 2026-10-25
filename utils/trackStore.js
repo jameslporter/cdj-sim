@@ -9,6 +9,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { analyzeAudio } from './audioAnalysis';
+import { packBands, packPeaks, unpackBands, unpackPeaks } from './peakPacking';
 import { deleteAudio, getAudioUri, isAudioStorageSupported, readPickedBytes, saveAudio } from './audioFiles';
 
 const STORAGE_KEY = 'cdj-sim/user-tracks/v1';
@@ -19,26 +20,12 @@ let cache = null; // array of track metadata, oldest first
 let loading = null;
 const listeners = new Set();
 
-// Waveform peaks (0..1) are packed as one character per value so the
-// metadata stays small (~1.4 KB per track).
-const PEAK_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-function packPeaks(peaks) {
-  if (!peaks) return null;
-  return peaks.map((v) => PEAK_ALPHABET[Math.round(Math.min(1, Math.max(0, v)) * 63)]).join('');
-}
-
-function unpackPeaks(packed) {
-  if (!packed) return undefined;
-  return Array.from(packed, (c) => PEAK_ALPHABET.indexOf(c) / 63);
-}
-
 function toStored(track) {
-  return { ...track, peaks: packPeaks(track.peaks) };
+  return { ...track, peaks: packPeaks(track.peaks), bands: packBands(track.bands) };
 }
 
 function fromStored(track) {
-  return { ...track, source: 'user', peaks: unpackPeaks(track.peaks) };
+  return { ...track, source: 'user', peaks: unpackPeaks(track.peaks), bands: unpackBands(track.bands) };
 }
 
 async function persist(next) {
@@ -101,6 +88,7 @@ export async function importAudioFiles(pickedFiles, { onProgress } = {}) {
         duration: info.duration,
         firstBeat: info.firstBeat,
         peaks: info.peaks,
+        bands: info.bands,
         fileName: picked.name,
         mimeType: picked.mimeType || 'audio/mpeg',
         size: picked.size ?? null,

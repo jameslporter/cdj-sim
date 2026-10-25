@@ -193,7 +193,7 @@ export function detectBeatGrid(mono, sampleRate) {
 
 // Loudness (RMS) per slice, normalised to the loudest slice — reads more like
 // rekordbox's waveform than raw peaks, which are flat on mastered tracks.
-function computePeaks(mono, count = PEAK_COUNT) {
+export function computePeaks(mono, count = PEAK_COUNT) {
   const levels = new Array(count).fill(0);
   const per = mono.length / count;
   let max = 0;
@@ -206,6 +206,45 @@ function computePeaks(mono, count = PEAK_COUNT) {
     if (levels[p] > max) max = levels[p];
   }
   return levels.map((v) => (max > 0 ? Math.round((v / max) * 100) / 100 : 0));
+}
+
+// Loudness of the low (bass, < ~200 Hz), mid and high (> ~2.5 kHz) parts of
+// each slice, for the RGB and 3 BAND waveform colours. Each band is
+// normalised to its own loudest slice, like rekordbox's coloured waveforms.
+export function computeBands(mono, sampleRate, count = PEAK_COUNT) {
+  const aLow = 1 - Math.exp((-2 * Math.PI * 200) / sampleRate);
+  const aHigh = 1 - Math.exp((-2 * Math.PI * 2500) / sampleRate);
+  const out = { low: new Array(count).fill(0), mid: new Array(count).fill(0), high: new Array(count).fill(0) };
+  const max = { low: 0, mid: 0, high: 0 };
+  const per = mono.length / count;
+  let lp1 = 0;
+  let lp2 = 0;
+  for (let p = 0; p < count; p += 1) {
+    const start = Math.floor(p * per);
+    const end = Math.max(start + 1, Math.floor((p + 1) * per));
+    let sl = 0;
+    let sm = 0;
+    let sh = 0;
+    for (let i = start; i < end; i += 1) {
+      const x = mono[i] || 0;
+      lp1 += aLow * (x - lp1);
+      lp2 += aHigh * (x - lp2);
+      const mid = lp2 - lp1;
+      const high = x - lp2;
+      sl += lp1 * lp1;
+      sm += mid * mid;
+      sh += high * high;
+    }
+    const n = end - start;
+    out.low[p] = Math.sqrt(sl / n);
+    out.mid[p] = Math.sqrt(sm / n);
+    out.high[p] = Math.sqrt(sh / n);
+    for (const b of ['low', 'mid', 'high']) if (out[b][p] > max[b]) max[b] = out[b][p];
+  }
+  for (const b of ['low', 'mid', 'high']) {
+    out[b] = out[b].map((v) => (max[b] > 0 ? Math.round((v / max[b]) * 100) / 100 : 0));
+  }
+  return out;
 }
 
 const yieldToUi = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -253,6 +292,7 @@ export async function analyzeAudio({ name, bytes }) {
     firstBeat: bpm === grid.bpm ? grid.firstBeat : 0,
     duration: buffer ? buffer.duration : 0, // 0 = unknown until the deck loads it
     peaks: mono ? computePeaks(mono) : null,
+    bands: mono ? computeBands(mono, buffer.sampleRate) : null,
     analyzed: Boolean(buffer),
   };
 }

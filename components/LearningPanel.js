@@ -1,15 +1,18 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { learnEntryFor } from '../constants/learningContent';
 import { learningMode, shownLearnId, useLearningMode } from '../hooks/useLearningMode';
+import DrillsView from './DrillsView';
 
 const ACCENT = '#4fc3f7';
 
 // The LEARN switch and, while learning mode is on, the explanation panel
 // along the bottom of the screen. The panel takes its own space below the
 // decks and mixer (it doesn't cover them), and every control keeps working
-// while it's open.
-export default function LearningPanel() {
+// while it's open. The DRILLS tab has guided exercises; `getDrillState`
+// gives them the decks and mixer to check.
+export default function LearningPanel({ getDrillState }) {
+  const [tab, setTab] = useState('controls');
   const enabled = useLearningMode((s) => s.enabled);
   const shownId = useLearningMode(shownLearnId);
   const { width, height } = useWindowDimensions();
@@ -37,7 +40,8 @@ export default function LearningPanel() {
 
   const entry = shownId ? learnEntryFor(shownId) : null;
   const wide = width >= 820;
-  const maxHeight = Math.max(150, Math.min(260, height * 0.38));
+  const maxHeight =
+    tab === 'drills' ? Math.max(200, Math.min(420, height * 0.5)) : Math.max(150, Math.min(260, height * 0.38));
 
   return (
     <View testID="learn-panel" style={[styles.panel, { maxHeight }]}>
@@ -45,8 +49,24 @@ export default function LearningPanel() {
         <View style={styles.badge}>
           <Text style={styles.badgeText}>LEARNING MODE</Text>
         </View>
+        {[
+          ['controls', 'CONTROLS'],
+          ['drills', 'DRILLS'],
+        ].map(([key, label]) => (
+          <Pressable
+            key={key}
+            testID={`learn-tab-${key}`}
+            onPress={() => {
+              setTab(key);
+              if (key === 'controls') learningMode.setDrillTargets([]);
+            }}
+            style={[styles.tab, tab === key && styles.tabOn]}
+          >
+            <Text style={[styles.tabText, tab === key && styles.tabTextOn]}>{label}</Text>
+          </Pressable>
+        ))}
         <Text style={styles.area} numberOfLines={1}>
-          {entry?.area ?? ''}
+          {tab === 'controls' ? (entry?.area ?? '') : ''}
         </Text>
         <Pressable
           testID="learn-exit"
@@ -61,7 +81,9 @@ export default function LearningPanel() {
       </View>
 
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
-        {entry ? (
+        {tab === 'drills' ? (
+          <DrillsView getState={getDrillState} />
+        ) : entry ? (
           <>
             <Text testID="learn-title" style={styles.title}>
               {entry.title}
@@ -159,6 +181,26 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+  tab: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: '#33505e',
+  },
+  tabOn: {
+    borderColor: ACCENT,
+    backgroundColor: '#0f2530',
+  },
+  tabText: {
+    color: '#8aa4b0',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  tabTextOn: {
+    color: ACCENT,
   },
   area: {
     flex: 1,

@@ -15,6 +15,7 @@ import { useLearnTarget } from '../hooks/useLearningMode';
 export default function TouchWaveform({
   seed,
   peaks,
+  bands,
   height = 18,
   progressRatio = 0,
   showPlayhead = true,
@@ -76,6 +77,7 @@ export default function TouchWaveform({
           height={height}
           seed={seed}
           peaks={peaks}
+          bands={bands}
           showPlayhead={showPlayhead}
           barCount={barCount}
         />

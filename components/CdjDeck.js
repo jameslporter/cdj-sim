@@ -29,6 +29,7 @@ import SearchKeyboard from './SearchKeyboard';
 import UtilityScreen from './UtilityScreen';
 import { UTILITY_SETTINGS } from '../constants/utilitySettings';
 import TrackFilterScreen from './TrackFilterScreen';
+import { WaveformColorContext } from './Waveform';
 import useTagList, { tagList } from '../hooks/useTagList';
 import { describeFilter, EMPTY_FILTER, passesFilter } from '../utils/trackFilter';
 
@@ -68,6 +69,9 @@ function importSummary(result) {
   return parts.join(' · ') || 'NO FILES CHOSEN';
 }
 
+// Seconds of track across the zoomed waveform at each rotary zoom step.
+const ZOOM_LEVELS = [2, 4, 8, 16, 32];
+
 const LIST_SCREENS = ['BROWSE', 'PLAYLIST', 'TAG LIST', 'SEARCH'];
 const LIST_TITLES = { BROWSE: 'USB1', PLAYLIST: 'PLAYLIST', 'TAG LIST': 'TAG LIST', SEARCH: 'SEARCH' };
 
@@ -78,6 +82,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
   const { preview } = deck;
   const bank = usePlaylistBank(`cdj-sim:playlist-bank:${idPrefix}`);
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
+  const [zoomIndex, setZoomIndex] = useState(ZOOM_LEVELS.indexOf(8));
   // Where each list screen is: the names of the folders entered, and the cursor row.
   const [nav, setNav] = useState({
     BROWSE: { path: [], sel: 0 },
@@ -191,6 +196,12 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
   const handleRotaryMove = (dir) => {
     if (isSettingsScreen) {
       setSettingSel((i) => Math.max(0, Math.min(settingRows.length - 1, i + dir)));
+      return;
+    }
+    if (activeScreen === null) {
+      // Waveform screen: Grid Adjust moves the grid, Zoom zooms the waveform.
+      if (deck.grid.adjusting) deck.grid.nudge(dir);
+      else setZoomIndex((z) => Math.max(0, Math.min(ZOOM_LEVELS.length - 1, z - dir)));
       return;
     }
     if (!isListScreen) setActiveScreen('BROWSE');
@@ -346,7 +357,8 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
   const toggleTimeMode = () => deck.setTimeMode((m) => (m === 'ELAPSED' ? 'REMAIN' : 'ELAPSED'));
 
   return (
-    <View style={styles.column}>
+    <WaveformColorContext.Provider value={settings.waveformColor}>
+      <View style={styles.column}>
       <ScrollView testID={`${idPrefix}scroll`} style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <View style={styles.body}>
           <View style={styles.topPanel}>
@@ -464,6 +476,9 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
                       previewRatio={
                         preview.active && preview.track?.id === deck.track.id ? preview.time / deck.duration : null
                       }
+                      waveDetail={deck.waveDetail}
+                      zoomSeconds={ZOOM_LEVELS[zoomIndex]}
+                      grid={deck.grid}
                       onOverviewTouchStart={startOverviewTouch}
                       onOverviewTouchMove={moveOverviewTouch}
                       onOverviewTouchEnd={endOverviewTouch}
@@ -501,6 +516,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
                   onPrev={() => handleRotaryMove(-1)}
                   onNext={() => handleRotaryMove(1)}
                   onLoad={handleRotaryPress}
+                  onHold={() => activeScreen === null && deck.grid.toggle()}
                   idPrefix={idPrefix}
                 />
               </ScreenSideControls>
@@ -661,7 +677,8 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: c
           </View>
         </View>
       </ScrollView>
-    </View>
+      </View>
+    </WaveformColorContext.Provider>
   );
 }
 

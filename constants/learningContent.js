@@ -95,7 +95,13 @@ export const LEARN_CONTENT = {
     title: 'ROTARY SELECTOR',
     what: 'Turn it to move the cursor up and down a list. Push it to open the highlighted folder or load the highlighted track onto this deck.',
     how: 'This is how most DJs browse on a CDJ: turn to find the track, push to load. Loading while the deck is playing is locked on the real player, so you load onto the deck that isn\'t on air.',
-    tip: 'The ◀ and ▶ buttons turn it; the middle button pushes it.',
+    tip: 'The ▲ and ▼ buttons turn it; the middle button pushes it. On the waveform screen, turning zooms the waveform and holding PUSH opens GRID ADJUST.',
+  },
+  'grid-adjust': {
+    title: 'GRID ADJUST',
+    what: 'Fixes a track\'s beat grid on the player. Turn the rotary selector to slide the grid a few milliseconds; ◀1/2 and 1/2▶ move it half a beat; SNAP GRID (CUE) makes the cue point the first beat of a bar; SHIFT GRID keeps the phase you\'ve set by ear against the sync master; ×2 and ÷2 fix a BPM analysed at double or half speed; RESET goes back to the analysis.',
+    how: 'Sync, quantize, beat jumps and the phase meter all trust the grid, so a grid that\'s off makes everything drift. Line the yellow beat lines up with the kicks, then hold the rotary again to go back to Zoom.',
+    tip: 'Edits are saved with the track, like rekordbox writes them to the USB.',
   },
 
   // ── Deck: the screen itself ───────────────────────────────────────────
@@ -381,8 +387,9 @@ export const LEARN_CONTENT = {
   // ── Mixer: channel strip ──────────────────────────────────────────────
   'ch-input': {
     title: 'INPUT SELECT',
-    what: 'Chooses what plays through this channel: DIGITAL or LINE from a CDJ, PHONO from a turntable, or MULTI I/O from a laptop.',
+    what: 'Chooses what plays through this channel: DIGITAL or LINE from a CDJ, PHONO from a turntable, USB A/B from a laptop, MULTI I/O, or the EXT/BUILT-IN effects returns. The label under it shows which deck you\'ll hear.',
     how: 'Set once when you plug in. If a deck is silent, a wrong input selector is one of the first things to check.',
+    tip: 'In this booth deck A is cabled to channel 3\'s DIGITAL input and deck B to channel 4\'s. Switch channel 3 to LINE and deck A goes silent.',
   },
   'ch-trim': {
     title: 'TRIM',
@@ -415,12 +422,13 @@ export const LEARN_CONTENT = {
     title: 'COMP',
     what: 'A one-knob compressor that evens out loud and quiet parts, making the channel sound denser and punchier.',
     how: 'A DJM-V10 feature for tightening up older or quieter recordings. Use a little: too much squashes the music.',
+    tip: 'Turn COMP up on a playing channel and listen as the quiet parts come up and the sound gets denser and punchier.',
   },
   'ch-cue': {
     title: 'CUE (HEADPHONES)',
     what: 'Sends this channel to your headphones, whether or not its fader is up.',
     how: 'The key to mixing: listen to the next track in your headphones and beatmatch it before the crowd hears it.',
-    tip: 'Pull channel 2\'s fader down, press its CUE, play deck B and turn HEADPHONES MIXING toward CUE: you hear deck B, the "crowd" doesn\'t.',
+    tip: 'Pull channel 4\'s fader down, press its CUE, play deck B and turn HEADPHONES MIXING toward CUE: you hear deck B, the "crowd" doesn\'t.',
     note: 'The real V10 has two headphone outputs (CUE A and CUE B). The sim has one, which is what your device plays.',
   },
   'hp-mixing': {
@@ -557,11 +565,24 @@ export const LEARN_CONTENT = {
     title: 'MASTER LEVEL',
     what: 'The overall volume going to the main speakers.',
     how: 'Set it so the master meter peaks below the red. Turn up the venue\'s amps, not the mixer, if it needs to be louder.',
+    tip: 'Like the real V10 (PEAK LIMITER on by default), the sim softly limits the master instead of clipping, but pushing into the limiter still flattens the sound.',
   },
   'master-booth': {
     title: 'BOOTH',
     what: 'The volume of the DJ booth monitor speakers, separate from the main speakers.',
     how: 'DJs set the booth loud enough to hear the mix clearly over the room, but not so loud it masks the headphones.',
+  },
+  'master-booth-eq': {
+    title: 'BOOTH EQ HI / LOW',
+    what: 'Tone controls for the booth monitors only (HI around 3 kHz, LOW around 300 Hz, each −12 to +6 dB). The main speakers are not affected.',
+    how: 'Booths are often boomy. Taking some LOW out of the monitors keeps the kick clear without changing what the crowd hears.',
+    tip: 'The sim plays you the headphones, so you won\'t hear the booth output here.',
+  },
+  'fader-curve': {
+    title: 'CH FADER CURVE',
+    what: 'The touch display key that sets how the channel faders respond. Curve 1 stays quiet until near the top, curve 2 rises gradually, curve 3 rises evenly.',
+    how: 'Curve 1 suits quick cuts and scratch-style mixing; curves 2 and 3 suit long blends where you ride the fader slowly.',
+    tip: 'Tap the key to cycle the curves, then move a fader halfway and listen to the difference.',
   },
   'master-isolator-on': {
     title: 'ISOLATOR ON/OFF',
@@ -673,6 +694,8 @@ const ALIASES = [
   [/^filter-(onoff|bpm-.*|key-.*)$/, 'filter'],
   [/^jog-display$/, 'jog-wheel'],
   [/^master-iso-(hi|mid|low)$/, 'master-iso'],
+  [/^master-booth-(hi|low)$/, 'master-booth-eq'],
+  [/^grid-.*$/, 'grid-adjust'],
 ];
 
 // Map a control's testID (e.g. "deckB-hotcue-C", "mixer-ch2-eq-low") to its

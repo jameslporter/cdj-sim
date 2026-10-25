@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -41,7 +41,8 @@ export default function CdjSimulator() {
   const settingsA = useDeckSettings('A');
   const settingsB = useDeckSettings('B');
 
-  // Deck A is plugged into mixer channel 1, deck B into channel 2.
+  // Each deck plays into its cable to the mixer (constants/setup.js says
+  // which channel input it's plugged into).
   const deckA = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('A'), getMasterBeatPos, syncKey: syncKeyFor('A'), channel: 0, settings: settingsA.settings });
   const deckB = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('B'), getMasterBeatPos, syncKey: syncKeyFor('B'), channel: 1, settings: settingsB.settings });
   decksRef.current = { A: deckA, B: deckB };
@@ -131,14 +132,21 @@ export default function CdjSimulator() {
 
   // ON AIR: the mixer tells each player over PRO DJ LINK whether its channel
   // is live (fader up and not cut by the crossfader).
-  const onAir = channels.map((ch) => ch.fader > 0.02 && crossfaderGain(ch.assign, crossfader) > 0.01);
+  const live = channels.map((ch) => ch.fader > 0.02 && crossfaderGain(ch.assign, crossfader) > 0.01);
+  const onAir = ['A', 'B'].map((id) => mixer.channelDecks.some((d, i) => d === id && live[i]));
 
   // BEAT FX tempo. In AUTO the V10 measures the BPM of the sound it's
   // assigned to (70–180 BPM); here that's the deck on that channel, or the
   // master deck for MASTER. TAP uses the tapped tempo.
+  const assignedDeck = beatFx.assign.startsWith('CH') ? mixer.channelDecks[Number(beatFx.assign.slice(2)) - 1] : null;
   const autoBpmSource =
-    beatFx.assign === 'CH1' ? deckA : beatFx.assign === 'CH2' ? deckB : (masterDeck ?? (deckB.isPlaying && !deckA.isPlaying ? deckB : deckA));
-  const beatFxBpm = beatFx.bpmMode === 'TAP' && beatFx.tapBpm ? beatFx.tapBpm : foldBpm(autoBpmSource.displayedBpm);
+    beatFx.assign === 'MASTER'
+      ? (masterDeck ?? (deckB.isPlaying && !deckA.isPlaying ? deckB : deckA))
+      : assignedDeck
+        ? decksRef.current[assignedDeck]
+        : null;
+  const beatFxBpm =
+    beatFx.bpmMode === 'TAP' && beatFx.tapBpm ? beatFx.tapBpm : autoBpmSource ? foldBpm(autoBpmSource.displayedBpm) : null;
   useEffect(() => {
     if (!engine) return;
     const beat = beatFx.beats[beatFx.effect] ?? beatFxInfo(beatFx.effect).defaultBeat;
@@ -146,14 +154,22 @@ export default function CdjSimulator() {
   }, [engine, beatFx, beatFxBpm]);
 
   useEffect(() => {
-    deckA.setVolume(engine ? 1 : clamp(mixer.channelGains[0] * (0.3 + 1.1 * mixer.master.level), 0, 1));
+    deckA.setVolume(engine ? 1 : clamp(mixer.deckGains.A * (0.3 + 1.1 * mixer.master.level), 0, 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine, mixer.channelGains[0], mixer.master.level]);
+  }, [engine, mixer.deckGains.A, mixer.master.level]);
 
   useEffect(() => {
-    deckB.setVolume(engine ? 1 : clamp(mixer.channelGains[1] * (0.3 + 1.1 * mixer.master.level), 0, 1));
+    deckB.setVolume(engine ? 1 : clamp(mixer.deckGains.B * (0.3 + 1.1 * mixer.master.level), 0, 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine, mixer.channelGains[1], mixer.master.level]);
+  }, [engine, mixer.deckGains.B, mixer.master.level]);
+
+  // What the guided drills check: both decks, the mixer and the audio engine.
+  const mixerRef = useRef(mixer);
+  mixerRef.current = mixer;
+  const getDrillState = useCallback(
+    () => ({ A: decksRef.current.A, B: decksRef.current.B, mixer: mixerRef.current, engine }),
+    [engine]
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -167,7 +183,7 @@ export default function CdjSimulator() {
         <DjmMixer mixer={mixer} beatFxBpm={beatFxBpm} />
         <CdjDeck deck={deckB} sync={syncProps('B')} library={library} label="DECK B" idPrefix="deckB-" onAir={onAir[1]} deckSettings={settingsB} />
       </ScrollView>
-      <LearningPanel />
+      <LearningPanel getDrillState={getDrillState} />
     </SafeAreaView>
   );
 }

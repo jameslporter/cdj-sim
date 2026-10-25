@@ -53,6 +53,13 @@ export const UTILITY_SETTINGS = [
     help: 'ON lights each hot cue pad in its own colour. OFF lights them all green.',
   },
   {
+    key: 'waveformColor',
+    label: 'WAVEFORM COLOR',
+    options: ['BLUE', 'RGB', '3BAND'],
+    help: 'How the waveforms are coloured. BLUE shows loudness only. RGB tints by frequency (bass red, mids green, highs blue). 3BAND layers bass (blue), mids (orange) and highs (white) so you can see kicks, vocals and hats apart.',
+    shortcut: true,
+  },
+  {
     key: 'playerNumber',
     label: 'PLAYER No.',
     options: ['AUTO', '1', '2', '3', '4', '5', '6'],

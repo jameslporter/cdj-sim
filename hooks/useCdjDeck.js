@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BEAT_JUMP_COUNTS, TEMPO_RANGES } from '../constants/theme';
 import { loadJSON, saveJSON } from '../utils/storage';
 import { DEMO_TRACKS } from '../constants/tracks';
@@ -8,9 +8,11 @@ import useDeckPlayer from './useDeckPlayer';
 import useJogEngine from './useJogEngine';
 import { getMixerEngine } from '../utils/mixerEngine';
 import useTouchPreview from './useTouchPreview';
+import useTrackGrids from './useTrackGrids';
 import useTrackHotCues from './useTrackHotCues';
 import useTrackMemoryCues, { getTrackMemoryCues } from './useTrackMemoryCues';
 import { keySyncShift, parseKey, shiftKeyText } from '../utils/musicKey';
+import { useWaveformDetail } from '../utils/waveformDetail';
 import { DEFAULT_SETTINGS, quantizeBeats } from '../constants/utilitySettings';
 
 const EMPTY_LOOP = { active: false, start: null, end: null };
@@ -56,8 +58,9 @@ function phaseError(target, current) {
   return d >= 0.5 ? d - 1 : d < -0.5 ? d + 1 : d;
 }
 
-// How far out of phase a synced deck may drift before it's pulled back.
-const SYNC_TOLERANCE_BEATS = 0.04;
+// How far out of phase a synced deck may drift before it's pulled back
+// (0.015 beats is about 7 ms at 128 BPM, below what you hear as a flam).
+const SYNC_TOLERANCE_BEATS = 0.015;
 
 /**
  * One CDJ.
@@ -65,7 +68,7 @@ const SYNC_TOLERANCE_BEATS = 0.04;
  *  - `syncBpm`: the master deck's BPM while BEAT SYNC follows it, else null.
  *  - `getMasterBeatPos()`: the master deck's live beat position, for phase.
  *  - `syncKey`: the sync master's current key, for KEY SYNC (else null).
- *  - `channel`: the mixer channel (0-based) the deck is plugged into.
+ *  - `channel`: which deck cable this is (0 = A, 1 = B); see constants/setup.js.
  */
 export default function useCdjDeck({
   tracks = DEMO_TRACKS,
@@ -75,7 +78,14 @@ export default function useCdjDeck({
   channel = 0,
   settings = DEFAULT_SETTINGS,
 } = {}) {
-  const [track, setTrack] = useState(DEMO_TRACKS[0]);
+  const [baseTrack, setTrack] = useState(DEMO_TRACKS[0]);
+  // GRID ADJUST edits (saved with the track) replace its analysed grid.
+  const trackGrids = useTrackGrids();
+  const gridEdit = trackGrids.get(baseTrack.id);
+  const track = useMemo(() => (gridEdit ? { ...baseTrack, ...gridEdit, gridEdited: true } : baseTrack), [baseTrack, gridEdit]);
+  // The waveform screen's rotary modes: Zoom, or Grid Adjust (hold the rotary).
+  const [gridAdjust, setGridAdjust] = useState(false);
+  useEffect(() => setGridAdjust(false), [baseTrack.id]);
   const [audioSource, setAudioSource] = useState(DEMO_TRACKS[0].file);
   const [loadError, setLoadError] = useState(null);
   const loadSeq = useRef(0);
@@ -136,6 +146,7 @@ export default function useCdjDeck({
   const setMemoryCues = (update) => trackMemoryCues.set(track.id, update);
 
   const { player, status, routedThroughMixer } = useDeckPlayer(audioSource, channel);
+  const waveDetail = useWaveformDetail(player, status.isLoaded, track.id);
 
   const duration = (status.isLoaded && status.duration) || track.duration || 1;
   // BEAT SYNC overrides the fader (it's "unlinked" until sync is off), and
@@ -151,7 +162,7 @@ export default function useCdjDeck({
 
   const jog = useJogEngine({
     player,
-    track,
+    track: baseTrack,
     duration,
     isPlaying,
     audioRate,
@@ -159,7 +170,7 @@ export default function useCdjDeck({
     vinylSpeedAdjust,
     volumeRef,
     // Scratch sound goes through the same mixer channel as the deck.
-    getOutput: routedThroughMixer ? () => getMixerEngine()?.channelInput(channel) : null,
+    getOutput: routedThroughMixer ? () => getMixerEngine()?.deckInput(channel) : null,
     // LOOP IN/OUT ADJUST: the jog moves the loop point instead of the track.
     onAdjust: loopAdjust ? (revs) => adjustLoopPoint(revs) : null,
   });
@@ -195,6 +206,39 @@ export default function useCdjDeck({
     const beat = (60 / forTrack.bpm) * quantizeBeats(settings.quantizeBeat);
     const first = forTrack.firstBeat || 0;
     return Math.max(0, Math.round((t - first) / beat) * beat + first);
+  };
+
+  // GRID ADJUST. Edits are saved with the track. The first beat is kept
+  // within the first bar so bar lines stay where they were.
+  const setGrid = (change) => {
+    const bpm = change.bpm ?? track.bpm;
+    const bar = (60 / bpm) * 4;
+    let firstBeat = change.firstBeat ?? track.firstBeat ?? 0;
+    firstBeat = ((firstBeat % bar) + bar) % bar;
+    trackGrids.set(baseTrack.id, { bpm: Math.round(bpm * 100) / 100, firstBeat: Math.round(firstBeat * 10000) / 10000 });
+  };
+  const grid = {
+    adjusting: gridAdjust,
+    edited: !!gridEdit,
+    toggle: () => setGridAdjust((g) => !g),
+    // Turning the rotary nudges the grid a few milliseconds per click.
+    nudge: (dir) => setGrid({ firstBeat: (track.firstBeat || 0) + dir * 0.005 }),
+    // ◀1/2 and 1/2▶: move the grid half a beat.
+    half: (dir) => setGrid({ firstBeat: (track.firstBeat || 0) + (dir * beatDuration) / 2 }),
+    // SNAP GRID (CUE): the cue point becomes the first beat of a bar.
+    snapToCue: () => setGrid({ firstBeat: cuePoint }),
+    // SHIFT GRID: keep the phase you've set by ear against the sync master
+    // (with pitch bend or the jog) by moving the grid to match it.
+    shiftToMaster: () => {
+      const master = getMasterBeatPos?.();
+      if (master == null) return false;
+      const err = phaseError(master * syncMult, getBeatPos());
+      setGrid({ firstBeat: (track.firstBeat || 0) - err * beatDuration });
+      return true;
+    },
+    // ×2 / ÷2: fix a track analysed at double or half its real tempo.
+    scaleBpm: (factor) => setGrid({ bpm: track.bpm * factor }),
+    reset: () => trackGrids.set(baseTrack.id, null),
   };
 
   // Transport: actually start/stop the audio.
@@ -249,14 +293,20 @@ export default function useCdjDeck({
   syncRef.current = { phaseAlignedTime, getPosition, beatDuration, player };
   useEffect(() => {
     if (!synced || !isPlaying || jog.scratching) return undefined;
+    let justSeeked = false;
     const id = setInterval(() => {
       const { phaseAlignedTime: align, getPosition: pos, beatDuration: beat, player: p } = syncRef.current;
       const now = pos();
       const error = align(now) - now;
-      if (Math.abs(error) <= SYNC_TOLERANCE_BEATS * beat) return;
-      // Still behind after the last correction: lead by more next time.
-      seekLeadRef.current = clamp(seekLeadRef.current + error * 0.8, 0, 0.3);
+      if (Math.abs(error) <= SYNC_TOLERANCE_BEATS * beat) {
+        justSeeked = false;
+        return;
+      }
+      // Still off straight after a correction: the seek itself landed late
+      // (or early), so lead by more (or less) next time.
+      if (justSeeked) seekLeadRef.current = clamp(seekLeadRef.current + error * 0.8, -0.05, 0.3);
       p.seekTo(now + error + seekLeadRef.current).catch(() => {});
+      justSeeked = true;
     }, 1000);
     return () => clearInterval(id);
   }, [synced, isPlaying, jog.scratching]);
@@ -777,8 +827,10 @@ export default function useCdjDeck({
 
   return {
     track,
+    grid,
     loadError,
     routedThroughMixer,
+    waveDetail,
     duration,
     isPlaying,
     elapsed,

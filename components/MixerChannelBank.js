@@ -43,7 +43,7 @@ export default function MixerChannelBank({
           value={crossfader}
           min={-1}
           max={1}
-          trackWidth={340}
+          trackWidth={420}
           centerTick
           onChange={onCrossfaderChange}
         />
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 40,
+    gap: 10,
   },
   crossfaderRow: {
     flexDirection: 'row',

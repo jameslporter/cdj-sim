@@ -5,12 +5,12 @@ import { getMixerEngine } from '../utils/mixerEngine';
 
 const EMPTY_STATUS = { isLoaded: false, duration: 0, currentTime: 0, playing: false };
 
-// The deck's player wired into mixer channel `channel`, so the mixer's EQ,
+// The deck's player wired into its cable to the mixer (`channel` 0 = A, 1 = B), so the mixer's EQ,
 // filter, faders and cue shape its sound.
 function useEngineDeckPlayer(source, channel) {
   const [status, setStatus] = useState(EMPTY_STATUS);
   const player = useMemo(
-    () => new EnginePlayer(source, getMixerEngine().channelInput(channel), setStatus),
+    () => new EnginePlayer(source, getMixerEngine().deckInput(channel), setStatus),
     // A new track gets a new player, like expo-audio's useAudioPlayer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [typeof source === 'number' ? source : (source?.uri ?? source), channel]

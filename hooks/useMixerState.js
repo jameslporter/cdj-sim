@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { clamp } from '../utils/format';
 
-const INPUT_OPTIONS = ['DIGITAL', 'LINE', 'PHONO', 'MULTI I/O'];
+import { DECK_IDS, deckOnChannel, defaultInputIndex, INPUT_OPTIONS, MIXER_CHANNELS } from '../constants/setup';
 export { BEAT_FX_NAMES } from '../utils/beatFx';
-export const BEAT_FX_ASSIGNS = ['CH1', 'CH2', 'MASTER'];
+export const BEAT_FX_ASSIGNS = [...Array.from({ length: MIXER_CHANNELS }, (_, i) => `CH${i + 1}`), 'MASTER'];
 
 function makeChannel(index) {
   return {
@@ -16,8 +16,9 @@ function makeChannel(index) {
     send: 0,
     filter: 0.5,
     fader: 0.85,
-    assign: index === 0 ? 'A' : 'B',
-    inputIndex: 0,
+    // Crossfader assign: left half of the mixer to A, right half to B.
+    assign: index < MIXER_CHANNELS / 2 ? 'A' : 'B',
+    inputIndex: defaultInputIndex(index),
     cue: false,
   };
 }
@@ -33,9 +34,19 @@ function channelGain(channel, crossfader) {
 }
 
 export default function useMixerState({ deckASignal, deckBSignal }) {
-  const [channels, setChannels] = useState(() => Array.from({ length: 2 }, (_, i) => makeChannel(i)));
+  const [channels, setChannels] = useState(() => Array.from({ length: MIXER_CHANNELS }, (_, i) => makeChannel(i)));
   const [crossfader, setCrossfader] = useState(0);
-  const [master, setMaster] = useState({ level: 0.75, booth: 0.5, isolatorOn: false, isoHi: 0.5, isoMid: 0.5, isoLow: 0.5 });
+  const [master, setMaster] = useState({
+    level: 0.75,
+    booth: 0.5,
+    boothHi: 0.5,
+    boothLow: 0.5,
+    isolatorOn: false,
+    isoHi: 0.5,
+    isoMid: 0.5,
+    isoLow: 0.5,
+    faderCurve: 2, // CH FADER CURVE, set on the touch display
+  });
   const [mic1, setMic1] = useState({ mode: 'off', level: 0.5, eqHi: 0.5, eqLow: 0.5 });
   const [mic2, setMic2] = useState({ mode: 'off', level: 0.5, eqHi: 0.5, eqLow: 0.5 });
   // FILTER section: which side of each channel's FILTER knob is active
@@ -57,7 +68,7 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
   // BEAT FX. `beats` remembers the BEAT value picked for each effect; `time`
   // is a TIME knob override in ms (or %), cleared by the BEAT buttons.
   const [beatFx, setBeatFx] = useState({
-    assign: 'CH1',
+    assign: 'CH3',
     on: false,
     effect: 'ECHO',
     beats: {},
@@ -77,9 +88,12 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
     setChannels((prev) => prev.map((ch, i) => (i === index ? { ...ch, ...patch } : ch)));
   }, []);
 
-  const cycleChannelInput = useCallback((index) => {
+  // The input selector is a rotary switch: step it either way.
+  const cycleChannelInput = useCallback((index, dir = 1) => {
     setChannels((prev) =>
-      prev.map((ch, i) => (i === index ? { ...ch, inputIndex: (ch.inputIndex + 1) % INPUT_OPTIONS.length } : ch))
+      prev.map((ch, i) =>
+        i === index ? { ...ch, inputIndex: (ch.inputIndex + dir + INPUT_OPTIONS.length) % INPUT_OPTIONS.length } : ch
+      )
     );
   }, []);
 
@@ -87,7 +101,13 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
     setChannels((prev) => prev.map((ch, i) => (i === index ? { ...ch, cue: !ch.cue } : ch)));
   }, []);
 
-  const deckSignals = [deckASignal ? 0.75 : 0, deckBSignal ? 0.75 : 0];
+  // Which deck each channel is playing (from its input selector).
+  const channelDecks = useMemo(
+    () => channels.map((ch, i) => deckOnChannel(i, INPUT_OPTIONS[ch.inputIndex])),
+    [channels]
+  );
+  const signalOf = { A: deckASignal ? 0.75 : 0, B: deckBSignal ? 0.75 : 0 };
+  const deckSignals = channelDecks.map((id) => (id ? signalOf[id] : 0));
 
   // Pure per-channel gain (trim/EQ/fader/crossfader only) — independent of
   // whether the linked deck is actually playing. This is what should drive
@@ -102,6 +122,15 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
     () => channels.map((ch, i) => clamp(deckSignals[i] * channelGain(ch, crossfader), 0, 1)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [channels, crossfader, deckASignal, deckBSignal]
+  );
+
+  // Expo Go fallback: each deck's volume is the gain of the channel(s) it's on.
+  const deckGains = useMemo(
+    () =>
+      Object.fromEntries(
+        DECK_IDS.map((id) => [id, channelDecks.reduce((g, d, i) => (d === id ? Math.max(g, channelGains[i]) : g), 0)])
+      ),
+    [channelDecks, channelGains]
   );
 
   const masterLevel = useMemo(() => {
@@ -121,8 +150,9 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
     beatFx,
     channelGains,
     channelLevels,
+    channelDecks,
+    deckGains,
     masterLevel,
-    inputOptions: INPUT_OPTIONS,
     setCrossfader,
     setMaster,
     setMic1,

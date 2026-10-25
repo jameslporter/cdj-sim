@@ -63,15 +63,15 @@ function MixerChannelStrip({
 
       <Text style={styles.linkedLabel}>{linked ? deckLabel : '—'}</Text>
 
-      <Knob testID={`${idPrefix}trim`} label="TRIM" value={channel.trim} bipolar onChange={handleTrimChange} size={48} />
-      <Knob testID={`${idPrefix}eq-hi`} label="HI" value={channel.eqHi} bipolar onChange={handleEqHiChange} size={44} />
+      <Knob testID={`${idPrefix}trim`} label="TRIM" value={channel.trim} bipolar onChange={handleTrimChange} size={40} />
+      <Knob testID={`${idPrefix}eq-hi`} label="HI" value={channel.eqHi} bipolar onChange={handleEqHiChange} size={36} />
       <Knob
         testID={`${idPrefix}eq-himid`}
         label="HI-MID"
         value={channel.eqHiMid}
         bipolar
         onChange={handleEqHiMidChange}
-        size={44}
+        size={36}
       />
       <Knob
         testID={`${idPrefix}eq-lomid`}
@@ -79,25 +79,25 @@ function MixerChannelStrip({
         value={channel.eqLoMid}
         bipolar
         onChange={handleEqLoMidChange}
-        size={44}
+        size={36}
       />
-      <Knob testID={`${idPrefix}eq-low`} label="LOW" value={channel.eqLow} bipolar onChange={handleEqLowChange} size={44} />
+      <Knob testID={`${idPrefix}eq-low`} label="LOW" value={channel.eqLow} bipolar onChange={handleEqLowChange} size={36} />
       <Knob
         testID={`${idPrefix}send`}
         label="SEND"
         value={channel.send ?? 0}
         onChange={handleSendChange}
-        size={40}
+        size={34}
         color={colors.blue}
       />
-      <Knob testID={`${idPrefix}comp`} label="COMP" value={channel.comp} onChange={handleCompChange} size={40} />
+      <Knob testID={`${idPrefix}comp`} label="COMP" value={channel.comp} onChange={handleCompChange} size={34} />
       <Knob
         testID={`${idPrefix}filter`}
         label="FILTER"
         value={channel.filter}
         bipolar
         onChange={handleFilterChange}
-        size={40}
+        size={34}
       />
 
       <Pressable
@@ -118,8 +118,8 @@ function MixerChannelStrip({
           min={0}
           max={1}
           trackHeight={180}
-          trackWidth={38}
-          thumbWidth={50}
+          trackWidth={30}
+          thumbWidth={40}
           onChange={handleFaderChange}
         />
       </View>
@@ -138,9 +138,9 @@ export default memo(MixerChannelStrip);
 
 const styles = StyleSheet.create({
   strip: {
-    width: 100,
+    width: 84,
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   channelNumber: {
     color: colors.textPrimary,

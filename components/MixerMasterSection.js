@@ -16,6 +16,24 @@ function MixerMasterSection({ master, masterLevel, getMasterPeak, onChange }) {
       </LearnView>
       <Knob testID="mixer-master-level" label="LEVEL" value={master.level} onChange={(v) => onChange({ level: v })} />
       <Knob testID="mixer-master-booth" label="BOOTH" value={master.booth} onChange={(v) => onChange({ booth: v })} />
+      <View style={styles.boothEq}>
+        <Knob
+          testID="mixer-master-booth-hi"
+          label="BOOTH HI"
+          value={master.boothHi ?? 0.5}
+          bipolar
+          size={30}
+          onChange={(v) => onChange({ boothHi: v })}
+        />
+        <Knob
+          testID="mixer-master-booth-low"
+          label="BOOTH LOW"
+          value={master.boothLow ?? 0.5}
+          bipolar
+          size={30}
+          onChange={(v) => onChange({ boothLow: v })}
+        />
+      </View>
 
       <CdjButton
         testID="mixer-master-isolator-on"
@@ -65,6 +83,10 @@ const styles = StyleSheet.create({
   meterRow: {
     flexDirection: 'row',
     gap: 4,
+  },
+  boothEq: {
+    flexDirection: 'row',
+    gap: 6,
   },
   isolatorButton: {
     width: 70,
