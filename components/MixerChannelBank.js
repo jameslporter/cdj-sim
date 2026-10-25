@@ -6,6 +6,7 @@ import MixerChannelStrip from './MixerChannelStrip';
 export default function MixerChannelBank({
   channels,
   channelLevels,
+  channelPeaks,
   crossfader,
   inputOptions,
   linkedLabels,
@@ -24,6 +25,7 @@ export default function MixerChannelBank({
             channelNumber={i + 1}
             channel={channel}
             level={channelLevels[i]}
+            getPeak={channelPeaks?.[i]}
             linked={Boolean(linkedLabels[i])}
             deckLabel={linkedLabels[i]}
             inputLabel={inputOptions[channel.inputIndex]}

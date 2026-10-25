@@ -383,6 +383,29 @@ export const LEARN_CONTENT = {
     title: 'CUE (HEADPHONES)',
     what: 'Sends this channel to your headphones, whether or not its fader is up.',
     how: 'The key to mixing: listen to the next track in your headphones and beatmatch it before the crowd hears it.',
+    tip: 'Pull channel 2\'s fader down, press its CUE, play deck B and turn HEADPHONES MIXING toward CUE: you hear deck B, the "crowd" doesn\'t.',
+    note: 'The real V10 has two headphone outputs (CUE A and CUE B). The sim has one, which is what your device plays.',
+  },
+  'hp-mixing': {
+    title: 'HEADPHONES MIXING',
+    what: 'Blends what you hear in your headphones between the channels with CUE on (left) and the master mix (right).',
+    how: 'Many DJs keep it near the middle so they hear the incoming track over the mix, then check each one by turning it fully left or right.',
+    note: 'In the sim your device\'s speakers or headphones play the HEADPHONES output, so it starts at MASTER.',
+  },
+  'hp-level': {
+    title: 'HEADPHONES LEVEL',
+    what: 'How loud your headphones are.',
+    how: 'Keep it as low as you can and still hear the beats clearly. Loud headphones in a loud booth damage hearing fast.',
+  },
+  'hp-split': {
+    title: 'MONO SPLIT',
+    what: 'Puts the cued channels in your left ear and the master in your right.',
+    how: 'A classic way to beatmatch: compare the two tracks one in each ear, without moving the MIXING knob.',
+  },
+  'hp-pre-eq': {
+    title: 'PRE EQ',
+    what: 'Cues channels before their EQ and filter, so you hear the track untouched even while its EQ is cut.',
+    how: 'Handy when the incoming track\'s bass is cut for the mix but you want to hear its kick to beatmatch.',
   },
   'ch-fader': {
     title: 'CHANNEL FADER',
@@ -397,8 +420,9 @@ export const LEARN_CONTENT = {
   },
   'ch-meter': {
     title: 'CHANNEL LEVEL METER',
-    what: 'Shows how loud this channel is after TRIM and EQ.',
-    how: 'Keep the peaks in the same zone on every channel (around the orange) and out of the red to avoid distortion.',
+    what: 'Shows how loud this channel is after TRIM, EQ and FILTER, before its fader. The red segments mean it\'s going over 0 dB.',
+    how: 'Set TRIM so the loud parts of every track peak in the orange and never hit the red. Then the faders control the mix and nothing distorts.',
+    tip: 'Play a deck and turn its TRIM up until the red segments flicker, then back off.',
   },
   crossfader: {
     title: 'CROSSFADER',
@@ -429,15 +453,21 @@ export const LEARN_CONTENT = {
   },
 
   // ── Mixer: filter ─────────────────────────────────────────────────────
-  'filter-mode': {
-    title: 'FILTER (LPF / OFF / HPF)',
-    what: 'Picks the filter type. LPF (low-pass) removes highs for a muffled, underwater sound. HPF (high-pass) removes bass for a thin, distant sound.',
-    how: 'Filters are one of the most used effects: sweep a high-pass on the outgoing track to clear room for the new one.',
+  'filter-lpf': {
+    title: 'LPF',
+    what: 'Turns on the low-pass side of every channel\'s FILTER knob. A low-pass removes the highs for a muffled, underwater sound.',
+    how: 'Turn a channel\'s FILTER knob left to sweep it in. Leave LPF off if you only ever want the knob to high-pass.',
   },
-  'filter-freq': {
-    title: 'FILTER FREQ',
-    what: 'Sets where the filter cuts. Sweep it to open or close the sound.',
-    how: 'Slow sweeps over 8 or 16 bars build tension into a drop.',
+  'filter-hpf': {
+    title: 'HPF',
+    what: 'Turns on the high-pass side of every channel\'s FILTER knob. A high-pass removes the bass for a thin, distant sound.',
+    how: 'Turn a channel\'s FILTER knob right to sweep it in. Sweeping a high-pass on the outgoing track clears room for the new one.',
+  },
+  'ch-filter': {
+    title: 'FILTER',
+    what: 'This channel\'s filter. Centre is off. Turn left for a low-pass (muffled), right for a high-pass (thin). The LPF and HPF buttons choose which sides work, and RESONANCE sets the edge.',
+    how: 'Filters are one of the most used effects: slow sweeps over 8 or 16 bars build tension into a drop, or ease a track out of the mix.',
+    tip: 'Play a deck and turn its FILTER knob slowly to the right, then back to the middle.',
   },
   'filter-resonance': {
     title: 'FILTER RESONANCE',

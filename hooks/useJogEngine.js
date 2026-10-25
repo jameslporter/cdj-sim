@@ -29,11 +29,23 @@ const raf = (fn) => requestAnimationFrame(fn);
  * While the jog drives the audio, a scratch voice plays it (it can go
  * backward); the normal player takes over again at the same spot afterwards.
  */
-export default function useJogEngine({ player, track, duration, isPlaying, audioRate, vinylMode, vinylSpeedAdjust, volumeRef }) {
+export default function useJogEngine({
+  player,
+  track,
+  duration,
+  isPlaying,
+  audioRate,
+  vinylMode,
+  vinylSpeedAdjust,
+  volumeRef,
+  getOutput = null,
+}) {
   const [scratching, setScratching] = useState(false);
   const [displayPos, setDisplayPos] = useState(0);
   const voiceRef = useRef(null);
-  if (!voiceRef.current) voiceRef.current = createScratchVoice();
+  const outputRef = useRef(getOutput);
+  outputRef.current = getOutput;
+  if (!voiceRef.current) voiceRef.current = createScratchVoice(() => outputRef.current?.() ?? null);
   const voice = voiceRef.current;
 
   const props = useRef({});

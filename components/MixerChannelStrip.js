@@ -19,6 +19,7 @@ function MixerChannelStrip({
   channelNumber,
   channel,
   level,
+  getPeak,
   linked,
   deckLabel,
   inputLabel,
@@ -40,6 +41,7 @@ function MixerChannelStrip({
   const handleEqLoMidChange = useCallback((v) => onUpdateChannel(index, { eqLoMid: v }), [onUpdateChannel, index]);
   const handleEqLowChange = useCallback((v) => onUpdateChannel(index, { eqLow: v }), [onUpdateChannel, index]);
   const handleCompChange = useCallback((v) => onUpdateChannel(index, { comp: v }), [onUpdateChannel, index]);
+  const handleFilterChange = useCallback((v) => onUpdateChannel(index, { filter: v }), [onUpdateChannel, index]);
   const handleFaderChange = useCallback((v) => onUpdateChannel(index, { fader: v }), [onUpdateChannel, index]);
   const handleAssignChange = useCallback((v) => onUpdateChannel(index, { assign: v }), [onUpdateChannel, index]);
 
@@ -80,6 +82,14 @@ function MixerChannelStrip({
       />
       <Knob testID={`${idPrefix}eq-low`} label="LOW" value={channel.eqLow} bipolar onChange={handleEqLowChange} size={44} />
       <Knob testID={`${idPrefix}comp`} label="COMP" value={channel.comp} onChange={handleCompChange} size={40} />
+      <Knob
+        testID={`${idPrefix}filter`}
+        label="FILTER"
+        value={channel.filter}
+        bipolar
+        onChange={handleFilterChange}
+        size={40}
+      />
 
       <Pressable
         testID={`${idPrefix}cue`}
@@ -91,7 +101,7 @@ function MixerChannelStrip({
 
       <View style={styles.faderRow}>
         <LearnView learnId={`${idPrefix}meter`}>
-          <VuMeter level={level} height={180} width={14} />
+          <VuMeter level={level} getPeak={getPeak} height={180} width={14} />
         </LearnView>
         <VerticalFader
           testID={`${idPrefix}fader`}

@@ -3,23 +3,44 @@ import { StyleSheet, View } from 'react-native';
 import { clamp } from '../utils/format';
 
 const SEGMENTS = 14;
+// Meter scale in dB: the bottom segment lights at -28 dB, the top at +4 dB.
+// The two red segments mean the signal is above 0 dB: turn TRIM down.
+const FLOOR_DB = -28;
+const RANGE_DB = 32;
+const FALL_PER_TICK = 0.06;
 
-function VuMeter({ level, height = 120, width = 10 }) {
+const peakToLevel = (peak) => (peak <= 0 ? 0 : clamp((20 * Math.log10(peak) - FLOOR_DB) / RANGE_DB, 0, 1));
+
+/**
+ * A segment level meter. With `getPeak` it shows the real audio level (a 0–1
+ * linear peak, polled about 30 times a second, falling back gently like a
+ * hardware meter). Without it, `level` (0–1) is shown with a little movement,
+ * for setups where the audio can't be measured.
+ */
+function VuMeter({ level = 0, getPeak, height = 120, width = 10 }) {
   const [displayLevel, setDisplayLevel] = useState(0);
   const levelRef = useRef(level);
   levelRef.current = level;
+  const peakRef = useRef(getPeak);
+  peakRef.current = getPeak;
 
-  // One interval for the component's whole lifetime — restarting this on every
-  // `level` change (which happens on every pixel of a fader/crossfader drag)
-  // meant up to 4 VU meters were tearing down and recreating a timer per
-  // pointer-move event, which is what made drags feel less smooth over time.
+  // One interval for the component's whole lifetime, so fader drags don't
+  // restart timers.
   useEffect(() => {
-    const id = setInterval(() => {
-      const current = levelRef.current;
-      setDisplayLevel(current <= 0 ? 0 : clamp(current + (Math.random() - 0.5) * 0.12, 0, 1));
-    }, 120);
+    const id = setInterval(
+      () => {
+        if (peakRef.current) {
+          const next = peakToLevel(peakRef.current());
+          setDisplayLevel((prev) => (next >= prev ? next : Math.max(next, prev - FALL_PER_TICK)));
+        } else {
+          const current = levelRef.current;
+          setDisplayLevel(current <= 0 ? 0 : clamp(current + (Math.random() - 0.5) * 0.12, 0, 1));
+        }
+      },
+      getPeak ? 33 : 120
+    );
     return () => clearInterval(id);
-  }, []);
+  }, [getPeak != null]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const litCount = Math.round(displayLevel * SEGMENTS);
   const segmentHeight = (height - (SEGMENTS - 1) * 2) / SEGMENTS;

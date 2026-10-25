@@ -1,11 +1,12 @@
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { BEAT_JUMP_COUNTS, TEMPO_RANGES } from '../constants/theme';
 import { loadJSON, saveJSON } from '../utils/storage';
 import { DEMO_TRACKS } from '../constants/tracks';
 import { resolveAudioSource } from '../utils/audioSource';
 import { clamp } from '../utils/format';
+import useDeckPlayer from './useDeckPlayer';
 import useJogEngine from './useJogEngine';
+import { getMixerEngine } from '../utils/mixerEngine';
 import useTouchPreview from './useTouchPreview';
 import useTrackHotCues from './useTrackHotCues';
 
@@ -50,8 +51,9 @@ const SYNC_TOLERANCE_BEATS = 0.04;
  *  - `tracks` is the list TRACK SEARCH (|◀◀ / ▶▶|) steps through.
  *  - `syncBpm`: the master deck's BPM while BEAT SYNC follows it, else null.
  *  - `getMasterBeatPos()`: the master deck's live beat position, for phase.
+ *  - `channel`: the mixer channel (0-based) the deck is plugged into.
  */
-export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMasterBeatPos = null } = {}) {
+export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMasterBeatPos = null, channel = 0 } = {}) {
   const [track, setTrack] = useState(DEMO_TRACKS[0]);
   const [audioSource, setAudioSource] = useState(DEMO_TRACKS[0].file);
   const [loadError, setLoadError] = useState(null);
@@ -97,8 +99,7 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   const hotCues = trackHotCues.get(track.id);
   const setHotCues = (update) => trackHotCues.set(track.id, update);
 
-  const player = useAudioPlayer(audioSource);
-  const status = useAudioPlayerStatus(player);
+  const { player, status, routedThroughMixer } = useDeckPlayer(audioSource, channel);
 
   const duration = (status.isLoaded && status.duration) || track.duration || 1;
   // BEAT SYNC overrides the fader (it's "unlinked" until sync is off), and
@@ -112,7 +113,18 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   // re-apply it to each new one (and to the jog's scratch audio).
   const volumeRef = useRef(1);
 
-  const jog = useJogEngine({ player, track, duration, isPlaying, audioRate, vinylMode, vinylSpeedAdjust, volumeRef });
+  const jog = useJogEngine({
+    player,
+    track,
+    duration,
+    isPlaying,
+    audioRate,
+    vinylMode,
+    vinylSpeedAdjust,
+    volumeRef,
+    // Scratch sound goes through the same mixer channel as the deck.
+    getOutput: routedThroughMixer ? () => getMixerEngine()?.channelInput(channel) : null,
+  });
   // While the jog is driving the audio, the position comes from the platter.
   const elapsed = jog.position ?? status.currentTime ?? 0;
   const isJogHeld = jog.scratching;
@@ -202,8 +214,13 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   // Loop-window watch: seek back to the loop start once playback reaches loop end.
   // (Real audio can't play backward, so this only handles the forward case —
   // reverse + loop together only affects the phantom/visual math, not audible playback.)
+  // The mixer-routed player loops by itself, without a gap.
   useEffect(() => {
-    if (!loop.active || loop.start == null || loop.end == null) return;
+    player.setLoop?.(loop.active && loop.start != null && loop.end != null ? loop : null);
+  }, [loop, player]);
+
+  useEffect(() => {
+    if (player.setLoop || !loop.active || loop.start == null || loop.end == null) return;
     if (elapsed >= loop.end) {
       player.seekTo(loop.start).catch(() => {});
     }
@@ -566,6 +583,7 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   return {
     track,
     loadError,
+    routedThroughMixer,
     duration,
     isPlaying,
     elapsed,

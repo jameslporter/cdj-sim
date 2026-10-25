@@ -4,24 +4,33 @@ import { colors } from '../constants/theme';
 import MixerBeatFxSection from './MixerBeatFxSection';
 import MixerChannelBank from './MixerChannelBank';
 import MixerFilterSection from './MixerFilterSection';
+import MixerHeadphonesSection from './MixerHeadphonesSection';
+import { getMixerEngine } from '../utils/mixerEngine';
 import MixerMasterSection from './MixerMasterSection';
 import MixerMicSection from './MixerMicSection';
 import MixerSendFxSection from './MixerSendFxSection';
 
 const LINKED_LABELS = ['DECK A', 'DECK B'];
 
+// Real meter readings where the mixer engine is running (stable functions,
+// so the memoized sections don't re-render).
+const engine = getMixerEngine();
+const CHANNEL_PEAKS = engine ? [0, 1].map((i) => () => engine.channelPeak(i)) : null;
+const MASTER_PEAK = engine ? () => engine.masterPeak() : null;
+
 export default function DjmMixer({ mixer }) {
   // Stable wrappers around the (always-stable) useState setters. Without
   // these, every section below would get a brand-new onChange prop on every
   // DjmMixer render — including ones triggered by unrelated state like the
   // crossfader — which defeats React.memo on those sections entirely.
-  const { setMic1, setMic2, setFilter, setSendFx, setMaster, setBeatFx } = mixer;
+  const { setMic1, setMic2, setFilter, setSendFx, setMaster, setBeatFx, setHeadphones } = mixer;
   const handleChangeMic1 = useCallback((patch) => setMic1((m) => ({ ...m, ...patch })), [setMic1]);
   const handleChangeMic2 = useCallback((patch) => setMic2((m) => ({ ...m, ...patch })), [setMic2]);
   const handleChangeFilter = useCallback((patch) => setFilter((f) => ({ ...f, ...patch })), [setFilter]);
   const handleChangeSendFx = useCallback((patch) => setSendFx((s) => ({ ...s, ...patch })), [setSendFx]);
   const handleChangeMaster = useCallback((patch) => setMaster((m) => ({ ...m, ...patch })), [setMaster]);
   const handleChangeBeatFx = useCallback((patch) => setBeatFx((b) => ({ ...b, ...patch })), [setBeatFx]);
+  const handleChangeHeadphones = useCallback((patch) => setHeadphones((h) => ({ ...h, ...patch })), [setHeadphones]);
 
   return (
     <View style={styles.column}>
@@ -44,6 +53,7 @@ export default function DjmMixer({ mixer }) {
         <MixerChannelBank
           channels={mixer.channels}
           channelLevels={mixer.channelLevels}
+          channelPeaks={CHANNEL_PEAKS}
           crossfader={mixer.crossfader}
           inputOptions={mixer.inputOptions}
           linkedLabels={LINKED_LABELS}
@@ -54,7 +64,13 @@ export default function DjmMixer({ mixer }) {
         />
 
         <View style={styles.sectionsRow}>
-          <MixerMasterSection master={mixer.master} masterLevel={mixer.masterLevel} onChange={handleChangeMaster} />
+          <MixerMasterSection
+            master={mixer.master}
+            masterLevel={mixer.masterLevel}
+            getMasterPeak={MASTER_PEAK}
+            onChange={handleChangeMaster}
+          />
+          <MixerHeadphonesSection headphones={mixer.headphones} onChange={handleChangeHeadphones} />
           <MixerBeatFxSection beatFx={mixer.beatFx} onChange={handleChangeBeatFx} />
         </View>
       </ScrollView>

@@ -9,6 +9,7 @@ import useCdjDeck from '../hooks/useCdjDeck';
 import useMixerState from '../hooks/useMixerState';
 import useTrackLibrary from '../hooks/useTrackLibrary';
 import { clamp } from '../utils/format';
+import { getMixerEngine } from '../utils/mixerEngine';
 
 export default function CdjSimulator() {
   const library = useTrackLibrary();
@@ -22,9 +23,11 @@ export default function CdjSimulator() {
   const getMasterBeatPos = () => (master ? decksRef.current[master]?.getBeatPos() : null);
   const syncBpmFor = (id) => (syncOn[id] && master && master !== id ? masterBpm : null);
 
-  const deckA = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('A'), getMasterBeatPos });
-  const deckB = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('B'), getMasterBeatPos });
+  // Deck A is plugged into mixer channel 1, deck B into channel 2.
+  const deckA = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('A'), getMasterBeatPos, channel: 0 });
+  const deckB = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('B'), getMasterBeatPos, channel: 1 });
   decksRef.current = { A: deckA, B: deckB };
+  if (__DEV__) globalThis.__cdjDecks = decksRef.current; // for poking at from the console
 
   const masterDeck = master ? decksRef.current[master] : null;
   const masterDisplayedBpm = masterDeck ? masterDeck.displayedBpm : null;
@@ -81,19 +84,26 @@ export default function CdjSimulator() {
     deckBSignal: deckB.isPlaying || deckB.jog.scratching,
   });
 
-  // The mixer's channel 1 / channel 2 gain (trim, EQ, fader, crossfader) is
-  // the only thing standing between a deck and the speakers — apply it as
-  // real playback volume so the mixer is actually "in the signal path",
-  // not just a VU-meter display.
+  // The mixer is in the signal path. Where Web Audio is available (web and
+  // dev builds) each deck plays through the mixer engine, which applies TRIM,
+  // EQ, FILTER, faders, crossfader, ISOLATOR and the headphone cue for real.
+  // In Expo Go only the overall channel volume can be applied.
+  const engine = getMixerEngine();
+  const { channels, crossfader, filter, headphones } = mixer;
+  const mixerMaster = mixer.master;
   useEffect(() => {
-    deckA.setVolume(clamp(mixer.channelGains[0] * (0.3 + 1.1 * mixer.master.level), 0, 1));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mixer.channelGains[0], mixer.master.level]);
+    if (engine) engine.apply({ channels, crossfader, master: mixerMaster, filter, headphones });
+  }, [engine, channels, crossfader, mixerMaster, filter, headphones]);
 
   useEffect(() => {
-    deckB.setVolume(clamp(mixer.channelGains[1] * (0.3 + 1.1 * mixer.master.level), 0, 1));
+    deckA.setVolume(engine ? 1 : clamp(mixer.channelGains[0] * (0.3 + 1.1 * mixer.master.level), 0, 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mixer.channelGains[1], mixer.master.level]);
+  }, [engine, mixer.channelGains[0], mixer.master.level]);
+
+  useEffect(() => {
+    deckB.setVolume(engine ? 1 : clamp(mixer.channelGains[1] * (0.3 + 1.1 * mixer.master.level), 0, 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, mixer.channelGains[1], mixer.master.level]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
