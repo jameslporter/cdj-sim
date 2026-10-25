@@ -4,6 +4,7 @@ import { BEAT_JUMP_COUNTS, TEMPO_RANGES } from '../constants/theme';
 import { DEMO_TRACKS } from '../constants/tracks';
 import { resolveAudioSource } from '../utils/audioSource';
 import { clamp } from '../utils/format';
+import useJogEngine from './useJogEngine';
 import useTouchPreview from './useTouchPreview';
 import useTrackHotCues from './useTrackHotCues';
 
@@ -24,7 +25,8 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   const [reverse, setReverse] = useState(false);
   const [slip, setSlip] = useState(false);
   const [vinylMode, setVinylMode] = useState(true);
-  const [isJogHeld, setIsJogHeld] = useState(false);
+  const [vinylSpeedAdjust, setVinylSpeedAdjust] = useState(0.3);
+  const [jogAdjust, setJogAdjust] = useState(0.5);
   const [timeMode, setTimeMode] = useState('ELAPSED');
   const [loop, setLoop] = useState(EMPTY_LOOP);
   const [beatJumpCount, setBeatJumpCount] = useState(4);
@@ -48,15 +50,23 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   const player = useAudioPlayer(audioSource);
   const status = useAudioPlayerStatus(player);
 
-  const elapsed = status.currentTime ?? 0;
   const duration = (status.isLoaded && status.duration) || track.duration || 1;
   const audioRate = 1 + pitch / 100;
+
+  // Loading a track creates a new player, so remember the mixer's volume and
+  // re-apply it to each new one (and to the jog's scratch audio).
+  const volumeRef = useRef(1);
+
+  const jog = useJogEngine({ player, track, duration, isPlaying, audioRate, vinylMode, vinylSpeedAdjust, volumeRef });
+  // While the jog is driving the audio, the position comes from the platter.
+  const elapsed = jog.position ?? status.currentTime ?? 0;
+  const isJogHeld = jog.scratching;
   const rate = audioRate * (reverse ? -1 : 1);
   const displayedBpm = track.bpm * audioRate;
   // Positions are in track time (the file's own seconds), so one beat is
   // 60 / the track's original BPM no matter where the tempo fader sits.
   const beatDuration = 60 / track.bpm;
-  const shouldPlay = isPlaying && !isJogHeld;
+  const shouldPlay = isPlaying && !jog.scratching;
 
   // Snap to a track's beat grid (by default the loaded track's).
   const quantizeTime = (t, forTrack = track) => {
@@ -106,6 +116,7 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   }, [isPlaying, rate, duration]);
 
   const resetDeckState = () => {
+    jog.cancel();
     setIsPlaying(false);
     player.seekTo(0).catch(() => {});
     setPhantomElapsed(0);
@@ -132,6 +143,7 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   };
 
   const handleCue = () => {
+    jog.cancel();
     setIsPlaying(false);
     player.seekTo(cuePoint).catch(() => {});
     setPhantomElapsed(cuePoint);
@@ -292,6 +304,7 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
       return;
     }
     if (seq !== loadSeq.current) return; // a newer load won
+    jog.cancel();
     setLoadError(null);
     setTrack(nextTrack);
     setAudioSource(source);
@@ -336,9 +349,6 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     setMemoryCueIndex((i) => clamp(i - 1, -1, memoryCues.length - 2));
   };
 
-  // Loading a track creates a new player, so remember the mixer's volume and
-  // re-apply it to each new one.
-  const volumeRef = useRef(1);
   useEffect(() => {
     player.volume = volumeRef.current;
   }, [player]);
@@ -367,6 +377,9 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     slip,
     vinylMode,
     isJogHeld,
+    vinylSpeedAdjust,
+    jogAdjust,
+    jog,
     timeMode,
     hotCues,
     loop,
@@ -381,7 +394,8 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     loopRange,
     setPitch,
     setTimeMode,
-    setIsJogHeld,
+    setVinylSpeedAdjust,
+    setJogAdjust,
     setReverse,
     setSlip,
     setVinylMode,

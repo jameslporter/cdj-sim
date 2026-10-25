@@ -68,7 +68,6 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
   const { preview } = deck;
   const bank = usePlaylistBank(`cdj-sim:playlist-bank:${idPrefix}`);
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
-  const [vinylSpeedAdjust, setVinylSpeedAdjust] = useState(0.5);
   // Where each list screen is: the names of the folders entered, and the cursor row.
   const [nav, setNav] = useState({ BROWSE: { path: [], sel: 0 }, PLAYLIST: { path: [], sel: 0 } });
   const [browseStatus, setBrowseStatus] = useState(null);
@@ -428,8 +427,8 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 <Knob
                   testID={`${idPrefix}vinyl-speed-adjust`}
                   label="VINYL SPEED ADJ"
-                  value={vinylSpeedAdjust}
-                  onChange={setVinylSpeedAdjust}
+                  value={deck.vinylSpeedAdjust}
+                  onChange={deck.setVinylSpeedAdjust}
                   color={cdj.ledWhite}
                   size={34}
                 />
@@ -450,15 +449,24 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
               <View style={styles.jogColumn}>
                 <JogWheel
                   isPlaying={deck.isPlaying}
-                  pitch={deck.pitch}
                   reverse={deck.reverse}
                   vinylMode={deck.vinylMode}
-                  held={deck.isJogHeld}
-                  onHoldChange={deck.setIsJogHeld}
+                  jogAdjust={deck.jogAdjust}
+                  jog={deck.jog}
                   idPrefix={idPrefix}
                 />
-                <View style={styles.nfc}>
-                  <Text style={styles.nfcText}>NFC</Text>
+                <View style={styles.underJog}>
+                  <View style={styles.nfc}>
+                    <Text style={styles.nfcText}>NFC</Text>
+                  </View>
+                  <Knob
+                    testID={`${idPrefix}jog-adjust`}
+                    label="JOG ADJUST"
+                    value={deck.jogAdjust}
+                    onChange={deck.setJogAdjust}
+                    color={cdj.ledWhite}
+                    size={30}
+                  />
                 </View>
               </View>
 
@@ -592,6 +600,11 @@ const styles = StyleSheet.create({
     width: 96,
     alignItems: 'center',
     gap: 12,
+  },
+  underJog: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 24,
   },
   jogColumn: {
     alignItems: 'center',

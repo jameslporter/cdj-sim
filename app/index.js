@@ -15,8 +15,8 @@ export default function CdjSimulator() {
   const deckA = useCdjDeck({ tracks: library.allTracks });
   const deckB = useCdjDeck({ tracks: library.allTracks });
   const mixer = useMixerState({
-    deckASignal: deckA.isPlaying && !deckA.isJogHeld,
-    deckBSignal: deckB.isPlaying && !deckB.isJogHeld,
+    deckASignal: deckA.isPlaying || deckA.jog.scratching,
+    deckBSignal: deckB.isPlaying || deckB.jog.scratching,
   });
 
   // The mixer's channel 1 / channel 2 gain (trim, EQ, fader, crossfader) is
