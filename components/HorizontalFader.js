@@ -2,6 +2,7 @@ import { memo, useRef } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import { colors } from '../constants/theme';
 import { clamp } from '../utils/format';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 function valueToX(value, min, max, trackWidth, thumbWidth) {
   return ((value - min) / (max - min)) * (trackWidth - thumbWidth);
@@ -49,10 +50,11 @@ function HorizontalFader({
     })
   ).current;
 
+  const learn = useLearnTarget(testID);
   const thumbX = valueToX(value, min, max, trackWidth, thumbWidth);
 
   return (
-    <View style={[styles.track, { width: trackWidth, height: trackHeight }]}>
+    <View {...learn.props} style={[styles.track, { width: trackWidth, height: trackHeight }, learn.style]}>
       {centerTick ? <View style={[styles.centerTick, { height: trackHeight - 16 }]} /> : null}
       <View
         testID={testID}

@@ -1,11 +1,14 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 // A CDJ-3000X hot cue pad: dark rubber when empty, glowing in the cue's
 // colour once a cue is stored.
 export default function HotCuePad({ label, set, color, onPress, onPressIn, onPressOut, onLongPress, testID }) {
+  const learn = useLearnTarget(testID);
   return (
     <Pressable
+      {...learn.props}
       testID={testID}
       style={({ pressed }) => [
         styles.pad,
@@ -15,6 +18,7 @@ export default function HotCuePad({ label, set, color, onPress, onPressIn, onPre
           boxShadow: `0px 0px 10px ${color}66, inset 0px 0px 10px ${color}55`,
         },
         pressed && styles.pressed,
+        learn.style,
       ]}
       onPress={onPress}
       onPressIn={onPressIn}

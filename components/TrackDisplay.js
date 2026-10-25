@@ -3,6 +3,8 @@ import { cdj } from '../constants/theme';
 import { formatTime } from '../utils/format';
 import TouchWaveform from './TouchWaveform';
 import { waveSeed, ZoomWaveform } from './Waveform';
+import { useLearnTarget } from '../hooks/useLearningMode';
+import LearnView from './LearnView';
 
 // The CDJ-3000X's main player screen: track header, zoomed waveform,
 // overview waveform and the time / tempo / BPM strip along the bottom.
@@ -33,36 +35,41 @@ export default function TrackDisplay({
   const timeValue = timeMode === 'REMAIN' ? duration - elapsed : elapsed;
   const timePrefix = timeMode === 'REMAIN' ? '-' : '';
   const [bpmWhole, bpmFrac] = String(bpm).split('.');
+  const gateLearn = useLearnTarget(`${idPrefix}gate-cue`);
+  const timeLearn = useLearnTarget(`${idPrefix}time-toggle`);
 
   return (
     <View style={styles.display}>
       <View style={styles.header}>
-        <View style={styles.playerBadge}>
+        <LearnView testID={`${idPrefix}display-player`} learnId={`${idPrefix}display-player`} style={styles.playerBadge}>
           <Text style={styles.playerLabel}>PLAYER</Text>
           <Text style={styles.playerNumber}>{playerNumber}</Text>
-        </View>
-        <View style={styles.trackInfo}>
+        </LearnView>
+        <LearnView testID={`${idPrefix}display-track`} learnId={`${idPrefix}display-track`} style={styles.trackInfo}>
           <Text style={styles.trackTitle} numberOfLines={1}>
             {track.title}
           </Text>
           <Text style={styles.trackArtist} numberOfLines={1}>
             {track.artist}
           </Text>
-        </View>
+        </LearnView>
         <Pressable
+          {...gateLearn.props}
           testID={`${idPrefix}gate-cue`}
           onPress={onToggleGateCue}
-          style={[styles.touchKey, gateCue && styles.touchKeyOn]}
+          style={[styles.touchKey, gateCue && styles.touchKeyOn, gateLearn.style]}
         >
           <Text style={[styles.touchKeyText, gateCue && styles.touchKeyTextOn]}>GATE CUE</Text>
         </Pressable>
-        <View style={styles.keyBox}>
+        <LearnView testID={`${idPrefix}display-key`} learnId={`${idPrefix}display-key`} style={styles.keyBox}>
           <Text style={styles.metricLabel}>KEY</Text>
           <Text style={styles.keyValue}>{track.key}</Text>
-        </View>
+        </LearnView>
       </View>
 
-      <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} seed={seed} />
+      <LearnView testID={`${idPrefix}display-zoom`} learnId={`${idPrefix}display-zoom`}>
+        <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} seed={seed} />
+      </LearnView>
 
       {/* Touch the overview: needle search while paused, Touch Cue
           (preview that spot) while playing. */}
@@ -85,7 +92,12 @@ export default function TrackDisplay({
       </View>
 
       <View style={styles.strip}>
-        <Pressable testID={`${idPrefix}time-toggle`} style={styles.timeBlock} onPress={onToggleTimeMode}>
+        <Pressable
+          {...timeLearn.props}
+          testID={`${idPrefix}time-toggle`}
+          style={[styles.timeBlock, timeLearn.style]}
+          onPress={onToggleTimeMode}
+        >
           <Text style={styles.metricLabel}>{timeMode}</Text>
           <Text style={styles.timeValue}>
             {timePrefix}
@@ -95,7 +107,7 @@ export default function TrackDisplay({
 
         <View style={styles.divider} />
 
-        <View style={styles.tempoBlock}>
+        <LearnView testID={`${idPrefix}display-tempo`} learnId={`${idPrefix}display-tempo`} style={styles.tempoBlock}>
           <View style={styles.labelRow}>
             <Text style={styles.metricLabel}>TEMPO</Text>
             <Text style={styles.rangeTag}>{pitchRange === 100 ? 'WIDE' : `±${pitchRange}`}</Text>
@@ -109,17 +121,17 @@ export default function TrackDisplay({
             <Text style={[styles.badge, masterTempo && styles.badgeOnRed]}>MT</Text>
             <Text style={[styles.badge, quantize && styles.badgeOnRed]}>Q</Text>
           </View>
-        </View>
+        </LearnView>
 
         <View style={styles.divider} />
 
-        <View style={styles.bpmBlock}>
+        <LearnView testID={`${idPrefix}display-bpm`} learnId={`${idPrefix}display-bpm`} style={styles.bpmBlock}>
           <Text style={styles.metricLabel}>BPM</Text>
           <Text style={styles.bpmValue}>
             {bpmWhole}
             <Text style={styles.bpmFrac}>.{bpmFrac ?? '00'}</Text>
           </Text>
-        </View>
+        </LearnView>
       </View>
     </View>
   );

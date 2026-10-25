@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { useLearnTarget } from '../hooks/useLearningMode';
 import { colors } from '../constants/theme';
 
 function CdjButton({
@@ -20,8 +21,10 @@ function CdjButton({
   children,
   testID,
 }) {
+  const learn = useLearnTarget(testID);
   return (
     <Pressable
+      {...learn.props}
       testID={testID}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -34,6 +37,7 @@ function CdjButton({
         pressed && styles.pressed,
         disabled && styles.disabled,
         style,
+        learn.style,
       ]}
     >
       {children ?? (

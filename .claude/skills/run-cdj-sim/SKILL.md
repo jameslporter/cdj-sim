@@ -161,6 +161,15 @@ The deck is styled after the black CDJ-3000X (palette: `cdj` in
 hardware, the tempo fader reads − at the top and + at the bottom, so
 dragging `tempo-fader-thumb` *down* speeds the track up.
 
+**Learning mode**: `learn-toggle` (the floating "? LEARN" button) turns it
+on; `learn-panel` is the explanation panel along the bottom, `learn-title`
+its heading, `learn-exit` turns it off. While it's on, touching or clicking
+any control shows its explanation and the control still works, so check
+`learn-title` after a `click`. The screen readouts have testIDs for this:
+`display-player`, `display-track`, `display-key`, `display-zoom`,
+`display-tempo`, `display-bpm` (deck-prefixed). Explanations live in
+`constants/learningContent.js`, keyed off each control's testID.
+
 **Mixer controls** (no per-instance prefix — there's only one mixer;
 channel ones are prefixed `mixer-ch1-` through `mixer-ch6-`): per
 channel — `trim`, `eq-hi`, `eq-himid`, `eq-lomid`, `eq-low`, `comp`,

@@ -1,12 +1,14 @@
 import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
+import { useLearnTarget } from '../hooks/useLearningMode';
 
 const SEEK_STEP_SECONDS = 1;
 const SEEK_INTERVAL_MS = 100;
 
 function SearchButton({ direction, onSeek, label, testID }) {
   const intervalRef = useRef(null);
+  const learn = useLearnTarget(testID);
 
   const start = () => {
     onSeek(direction * SEEK_STEP_SECONDS);
@@ -21,8 +23,9 @@ function SearchButton({ direction, onSeek, label, testID }) {
 
   return (
     <Pressable
+      {...learn.props}
       testID={testID}
-      style={({ pressed }) => [styles.searchButton, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.searchButton, pressed && styles.pressed, learn.style]}
       onPressIn={start}
       onPressOut={stop}
     >
@@ -34,11 +37,13 @@ function SearchButton({ direction, onSeek, label, testID }) {
 // Big round CUE / PLAY buttons with an LED ring, as on the CDJ-3000X.
 // CUE glows orange, PLAY glows green (solid while playing).
 function RoundButton({ testID, onPress, ringColor, lit, children }) {
+  const learn = useLearnTarget(testID);
   return (
     <Pressable
+      {...learn.props}
       testID={testID}
       onPress={onPress}
-      style={({ pressed }) => [styles.roundOuter, pressed && styles.roundPressed]}
+      style={({ pressed }) => [styles.roundOuter, pressed && styles.roundPressed, learn.style]}
     >
       <View
         style={[

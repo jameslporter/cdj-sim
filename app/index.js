@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CdjDeck from '../components/CdjDeck';
 import DjmMixer from '../components/DjmMixer';
+import LearningPanel from '../components/LearningPanel';
 import useCdjDeck from '../hooks/useCdjDeck';
 import useMixerState from '../hooks/useMixerState';
 import useTrackLibrary from '../hooks/useTrackLibrary';
@@ -44,6 +45,7 @@ export default function CdjSimulator() {
         <DjmMixer mixer={mixer} />
         <CdjDeck deck={deckB} library={library} label="DECK B" idPrefix="deckB-" />
       </ScrollView>
+      <LearningPanel />
     </SafeAreaView>
   );
 }

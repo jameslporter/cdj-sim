@@ -24,6 +24,7 @@ import TrackDisplay from './TrackDisplay';
 import TrackSearchControls from './TrackSearchControls';
 import TransportControls from './TransportControls';
 import UsbRow from './UsbRow';
+import LearnView from './LearnView';
 
 function importLabel(library) {
   if (!library.importSupported) return 'IMPORT UNAVAILABLE';
@@ -330,9 +331,11 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                         <Text style={styles.previewBadgeText} numberOfLines={1}>
                           ◉ PREVIEW · HOT CUE sets a cue
                         </Text>
-                        <Pressable testID={`${idPrefix}preview-stop`} onPress={preview.stop} style={styles.previewStop}>
-                          <Text style={styles.previewStopText}>■</Text>
-                        </Pressable>
+                        <LearnView learnId={`${idPrefix}preview-stop`}>
+                          <Pressable testID={`${idPrefix}preview-stop`} onPress={preview.stop} style={styles.previewStop}>
+                            <Text style={styles.previewStopText}>■</Text>
+                          </Pressable>
+                        </LearnView>
                       </View>
                     </View>
                   ) : null}
