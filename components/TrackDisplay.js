@@ -13,6 +13,31 @@ import { compatible, parseKey } from '../utils/musicKey';
 import { useLearnTarget } from '../hooks/useLearningMode';
 import LearnView from './LearnView';
 
+// GRID ADJUST (hold the rotary selector): the touch keys for fixing the
+// beat grid. Turning the rotary nudges the grid a few milliseconds.
+function GridAdjustPanel({ grid, idPrefix }) {
+  const learn = useLearnTarget(`${idPrefix}grid-panel`);
+  const keys = [
+    ['grid-snap', 'SNAP (CUE)', grid.snapToCue],
+    ['grid-shift', 'SHIFT', grid.shiftToMaster],
+    ['grid-half-back', '◀½', () => grid.half(-1)],
+    ['grid-half-fwd', '½▶', () => grid.half(1)],
+    ['grid-halve', 'x½', () => grid.scaleBpm(0.5)],
+    ['grid-double', 'x2', () => grid.scaleBpm(2)],
+    ['grid-reset', 'RESET', grid.reset],
+  ];
+  return (
+    <View {...learn.props} testID={`${idPrefix}grid-panel`} style={[styles.gridPanel, learn.style]}>
+      <Text style={styles.gridTitle}>GRID</Text>
+      {keys.map(([id, label, onPress]) => (
+        <Pressable key={id} testID={`${idPrefix}${id}`} onPress={onPress} style={styles.gridKey}>
+          <Text style={styles.gridKeyText}>{label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 // The CDJ-3000X's main player screen: track header, zoomed waveform,
 // overview waveform and the time / tempo / BPM strip along the bottom.
 export default function TrackDisplay({
@@ -55,6 +80,8 @@ export default function TrackDisplay({
   onToggleGateCue,
   previewRatio,
   waveDetail,
+  zoomSeconds,
+  grid,
   onOverviewTouchStart,
   onOverviewTouchMove,
   onOverviewTouchEnd,
@@ -191,6 +218,8 @@ export default function TrackDisplay({
           peaks={track.peaks}
           bands={track.bands}
           detail={waveDetail}
+          windowSeconds={zoomSeconds}
+          gridAdjust={!!grid?.adjusting}
           seed={seed}
           loop={loopTimes}
           hotCues={hotCues}
@@ -198,15 +227,19 @@ export default function TrackDisplay({
         />
       </LearnView>
 
-      <View style={styles.phaseRow}>
-        <LearnView testID={`${idPrefix}phase-meter`} learnId={`${idPrefix}phase-meter`} style={styles.phaseWrap}>
-          <PhaseMeter beatPos={beatPos} masterBeatPos={isMaster ? null : masterBeatPos} isMaster={isMaster} />
-        </LearnView>
-        <LearnView testID={`${idPrefix}beat-countdown`} learnId={`${idPrefix}beat-countdown`} style={styles.countdown}>
-          <Text style={styles.countdownValue}>{countdown}</Text>
-          <Text style={styles.countdownUnit}>BARS</Text>
-        </LearnView>
-      </View>
+      {grid?.adjusting ? (
+        <GridAdjustPanel grid={grid} idPrefix={idPrefix} />
+      ) : (
+        <View style={styles.phaseRow}>
+          <LearnView testID={`${idPrefix}phase-meter`} learnId={`${idPrefix}phase-meter`} style={styles.phaseWrap}>
+            <PhaseMeter beatPos={beatPos} masterBeatPos={isMaster ? null : masterBeatPos} isMaster={isMaster} />
+          </LearnView>
+          <LearnView testID={`${idPrefix}beat-countdown`} learnId={`${idPrefix}beat-countdown`} style={styles.countdown}>
+            <Text style={styles.countdownValue}>{countdown}</Text>
+            <Text style={styles.countdownUnit}>BARS</Text>
+          </LearnView>
+        </View>
+      )}
 
       {/* Touch the overview: needle search while paused, Touch Cue
           (preview that spot) while playing. */}
@@ -363,6 +396,33 @@ const styles = StyleSheet.create({
     color: cdj.screenText,
   },
   // Pops up over the waveform, like the touch screen's BEAT JUMP panel.
+  gridPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: cdj.screenPanel,
+  },
+  gridTitle: {
+    color: '#ffd23f',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginRight: 2,
+  },
+  gridKey: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: cdj.screenDivider,
+  },
+  gridKeyText: {
+    color: cdj.screenText,
+    fontSize: 9,
+    fontWeight: '700',
+  },
   jumpPanel: {
     position: 'absolute',
     top: 46,

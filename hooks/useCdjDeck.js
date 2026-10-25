@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BEAT_JUMP_COUNTS, TEMPO_RANGES } from '../constants/theme';
 import { loadJSON, saveJSON } from '../utils/storage';
 import { DEMO_TRACKS } from '../constants/tracks';
@@ -8,6 +8,7 @@ import useDeckPlayer from './useDeckPlayer';
 import useJogEngine from './useJogEngine';
 import { getMixerEngine } from '../utils/mixerEngine';
 import useTouchPreview from './useTouchPreview';
+import useTrackGrids from './useTrackGrids';
 import useTrackHotCues from './useTrackHotCues';
 import useTrackMemoryCues, { getTrackMemoryCues } from './useTrackMemoryCues';
 import { keySyncShift, parseKey, shiftKeyText } from '../utils/musicKey';
@@ -77,7 +78,14 @@ export default function useCdjDeck({
   channel = 0,
   settings = DEFAULT_SETTINGS,
 } = {}) {
-  const [track, setTrack] = useState(DEMO_TRACKS[0]);
+  const [baseTrack, setTrack] = useState(DEMO_TRACKS[0]);
+  // GRID ADJUST edits (saved with the track) replace its analysed grid.
+  const trackGrids = useTrackGrids();
+  const gridEdit = trackGrids.get(baseTrack.id);
+  const track = useMemo(() => (gridEdit ? { ...baseTrack, ...gridEdit, gridEdited: true } : baseTrack), [baseTrack, gridEdit]);
+  // The waveform screen's rotary modes: Zoom, or Grid Adjust (hold the rotary).
+  const [gridAdjust, setGridAdjust] = useState(false);
+  useEffect(() => setGridAdjust(false), [baseTrack.id]);
   const [audioSource, setAudioSource] = useState(DEMO_TRACKS[0].file);
   const [loadError, setLoadError] = useState(null);
   const loadSeq = useRef(0);
@@ -154,7 +162,7 @@ export default function useCdjDeck({
 
   const jog = useJogEngine({
     player,
-    track,
+    track: baseTrack,
     duration,
     isPlaying,
     audioRate,
@@ -198,6 +206,39 @@ export default function useCdjDeck({
     const beat = (60 / forTrack.bpm) * quantizeBeats(settings.quantizeBeat);
     const first = forTrack.firstBeat || 0;
     return Math.max(0, Math.round((t - first) / beat) * beat + first);
+  };
+
+  // GRID ADJUST. Edits are saved with the track. The first beat is kept
+  // within the first bar so bar lines stay where they were.
+  const setGrid = (change) => {
+    const bpm = change.bpm ?? track.bpm;
+    const bar = (60 / bpm) * 4;
+    let firstBeat = change.firstBeat ?? track.firstBeat ?? 0;
+    firstBeat = ((firstBeat % bar) + bar) % bar;
+    trackGrids.set(baseTrack.id, { bpm: Math.round(bpm * 100) / 100, firstBeat: Math.round(firstBeat * 10000) / 10000 });
+  };
+  const grid = {
+    adjusting: gridAdjust,
+    edited: !!gridEdit,
+    toggle: () => setGridAdjust((g) => !g),
+    // Turning the rotary nudges the grid a few milliseconds per click.
+    nudge: (dir) => setGrid({ firstBeat: (track.firstBeat || 0) + dir * 0.005 }),
+    // ◀1/2 and 1/2▶: move the grid half a beat.
+    half: (dir) => setGrid({ firstBeat: (track.firstBeat || 0) + (dir * beatDuration) / 2 }),
+    // SNAP GRID (CUE): the cue point becomes the first beat of a bar.
+    snapToCue: () => setGrid({ firstBeat: cuePoint }),
+    // SHIFT GRID: keep the phase you've set by ear against the sync master
+    // (with pitch bend or the jog) by moving the grid to match it.
+    shiftToMaster: () => {
+      const master = getMasterBeatPos?.();
+      if (master == null) return false;
+      const err = phaseError(master * syncMult, getBeatPos());
+      setGrid({ firstBeat: (track.firstBeat || 0) - err * beatDuration });
+      return true;
+    },
+    // ×2 / ÷2: fix a track analysed at double or half its real tempo.
+    scaleBpm: (factor) => setGrid({ bpm: track.bpm * factor }),
+    reset: () => trackGrids.set(baseTrack.id, null),
   };
 
   // Transport: actually start/stop the audio.
@@ -786,6 +827,7 @@ export default function useCdjDeck({
 
   return {
     track,
+    grid,
     loadError,
     routedThroughMixer,
     waveDetail,

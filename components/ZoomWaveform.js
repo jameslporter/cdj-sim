@@ -4,8 +4,8 @@ import { cdj, hotCueColors } from '../constants/theme';
 import { WaveColumn, WaveformColorContext, waveSample } from './Waveform';
 
 const COLUMNS = 96;
-// Seconds of track shown across the zoomed waveform (the CDJ's default zoom
-// shows about four bars of a house track).
+// Seconds of track shown across the zoomed waveform by default (about four
+// bars of a house track). The rotary selector zooms in and out.
 export const ZOOM_WINDOW_SECONDS = 8;
 
 // Loudness and band levels at track time `t`. Once the deck has measured the
@@ -66,28 +66,33 @@ export default function ZoomWaveform({
   hotCues,
   memoryCues,
   height = 76,
+  windowSeconds = ZOOM_WINDOW_SECONDS,
+  gridAdjust = false,
 }) {
   const [width, setWidth] = useState(1);
   const mode = useContext(WaveformColorContext);
   const beat = 60 / (bpm || 120);
-  const start = position - ZOOM_WINDOW_SECONDS / 2;
-  const xOf = (t) => (t - start) / ZOOM_WINDOW_SECONDS; // 0–1 across the view
+  const start = position - windowSeconds / 2;
+  const xOf = (t) => (t - start) / windowSeconds; // 0–1 across the view
 
   // Columns sit on a fixed grid of track time and the row slides by the
   // leftover fraction, so the waveform scrolls without shimmering.
-  const colSeconds = ZOOM_WINDOW_SECONDS / COLUMNS;
+  const colSeconds = windowSeconds / COLUMNS;
   const firstCol = Math.floor(start / colSeconds);
-  const shift = ((firstCol * colSeconds - start) / ZOOM_WINDOW_SECONDS) * width;
+  const shift = ((firstCol * colSeconds - start) / windowSeconds) * width;
   const info = { duration, peaks, bands, detail, seed, firstBeat, beat };
 
   const grid = [];
   const firstIdx = Math.ceil((start - firstBeat) / beat);
-  for (let b = firstIdx; firstBeat + b * beat <= start + ZOOM_WINDOW_SECONDS; b += 1) {
+  for (let b = firstIdx; firstBeat + b * beat <= start + windowSeconds; b += 1) {
     const t = firstBeat + b * beat;
     if (t < 0 || t > duration) continue;
     const downbeat = ((b % 4) + 4) % 4 === 0;
     grid.push(
-      <View key={b} style={[styles.gridLine, downbeat && styles.gridBar, { left: `${xOf(t) * 100}%` }]} />
+      <View
+        key={b}
+        style={[styles.gridLine, downbeat && styles.gridBar, gridAdjust && !downbeat && styles.gridAdjust, { left: `${xOf(t) * 100}%` }]}
+      />
     );
   }
 
@@ -152,6 +157,11 @@ const styles = StyleSheet.create({
   gridBar: {
     width: 2,
     backgroundColor: '#ff3b30',
+  },
+  gridAdjust: {
+    // Grid Adjust highlights the grid so you can see it against the kicks.
+    opacity: 1,
+    backgroundColor: '#ffd23f',
   },
   cueLine: {
     position: 'absolute',

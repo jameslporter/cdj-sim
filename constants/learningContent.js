@@ -95,7 +95,13 @@ export const LEARN_CONTENT = {
     title: 'ROTARY SELECTOR',
     what: 'Turn it to move the cursor up and down a list. Push it to open the highlighted folder or load the highlighted track onto this deck.',
     how: 'This is how most DJs browse on a CDJ: turn to find the track, push to load. Loading while the deck is playing is locked on the real player, so you load onto the deck that isn\'t on air.',
-    tip: 'The ◀ and ▶ buttons turn it; the middle button pushes it.',
+    tip: 'The ▲ and ▼ buttons turn it; the middle button pushes it. On the waveform screen, turning zooms the waveform and holding PUSH opens GRID ADJUST.',
+  },
+  'grid-adjust': {
+    title: 'GRID ADJUST',
+    what: 'Fixes a track\'s beat grid on the player. Turn the rotary selector to slide the grid a few milliseconds; ◀1/2 and 1/2▶ move it half a beat; SNAP GRID (CUE) makes the cue point the first beat of a bar; SHIFT GRID keeps the phase you\'ve set by ear against the sync master; ×2 and ÷2 fix a BPM analysed at double or half speed; RESET goes back to the analysis.',
+    how: 'Sync, quantize, beat jumps and the phase meter all trust the grid, so a grid that\'s off makes everything drift. Line the yellow beat lines up with the kicks, then hold the rotary again to go back to Zoom.',
+    tip: 'Edits are saved with the track, like rekordbox writes them to the USB.',
   },
 
   // ── Deck: the screen itself ───────────────────────────────────────────
@@ -689,6 +695,7 @@ const ALIASES = [
   [/^jog-display$/, 'jog-wheel'],
   [/^master-iso-(hi|mid|low)$/, 'master-iso'],
   [/^master-booth-(hi|low)$/, 'master-booth-eq'],
+  [/^grid-.*$/, 'grid-adjust'],
 ];
 
 // Map a control's testID (e.g. "deckB-hotcue-C", "mixer-ch2-eq-low") to its
