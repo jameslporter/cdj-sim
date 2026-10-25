@@ -25,6 +25,6 @@ export default function HotCueBar({ cues, onPress, onLongPress, idPrefix = '' })
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
   },
 });

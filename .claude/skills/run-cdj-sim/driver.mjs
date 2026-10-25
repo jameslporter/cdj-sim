@@ -39,7 +39,11 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCREENSHOT_DIR = path.join(__dirname, 'screenshots');
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const browser = await chromium.launch({
+  args: ['--no-sandbox'],
+  // Set PW_CHROMIUM_PATH to reuse a preinstalled Chromium (e.g. /opt/pw-browsers/chromium).
+  executablePath: process.env.PW_CHROMIUM_PATH || undefined,
+});
 const page = await browser.newPage({ viewport: { width: 420, height: 1100 } });
 
 const consoleErrors = [];

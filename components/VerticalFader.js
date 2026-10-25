@@ -24,6 +24,9 @@ function VerticalFader({
   thumbWidth = 52,
   centerTick = false,
   accentColor = colors.accent,
+  trackStyle,
+  thumbStyle,
+  centerTickStyle,
   testID,
 }) {
   const startYRef = useRef(0);
@@ -49,13 +52,14 @@ function VerticalFader({
   const thumbY = valueToY(value, min, max, trackHeight, thumbHeight);
 
   return (
-    <View style={[styles.track, { width: trackWidth, height: trackHeight }]}>
-      {centerTick ? <View style={[styles.centerTick, { width: trackWidth - 16 }]} /> : null}
+    <View style={[styles.track, { width: trackWidth, height: trackHeight }, trackStyle]}>
+      {centerTick ? <View style={[styles.centerTick, { width: trackWidth - 16 }, centerTickStyle]} /> : null}
       <View
         testID={testID}
         style={[
           styles.thumb,
           { top: thumbY, width: thumbWidth, height: thumbHeight, borderColor: accentColor },
+          thumbStyle,
         ]}
         {...panResponder.panHandlers}
       >

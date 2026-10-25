@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import CdjButton from './CdjButton';
+import DeckButton from './DeckButton';
 
 export default function LoopControls({
   active,
@@ -14,66 +14,71 @@ export default function LoopControls({
 }) {
   return (
     <View style={styles.group}>
-      <CdjButton
-        testID={`${idPrefix}loop-in`}
-        label={hasLoopStart ? 'IN ADJUST' : 'IN/CUE'}
-        sublabel="LOOP"
-        onPress={onLoopIn}
-        style={styles.button}
-      />
-      <CdjButton
-        testID={`${idPrefix}loop-out`}
-        label={active ? 'OUT ADJUST' : 'OUT'}
-        sublabel="LOOP"
-        disabled={!hasLoopStart}
-        onPress={onLoopOut}
-        style={styles.button}
-      />
-      <CdjButton
-        testID={`${idPrefix}loop-4beat`}
-        label={active ? '1/2X' : '4 BEAT'}
-        sublabel="LOOP"
-        active={active}
-        activeBg="#1a2f57"
-        activeBorder="#3d6bc4"
-        activeTextColor="#7fb0ff"
-        onPress={onFourBeat}
-        style={styles.button}
-      />
-      <CdjButton
-        testID={`${idPrefix}loop-8beat`}
-        label={active ? '2X' : '8 BEAT'}
-        sublabel="LOOP"
-        active={active}
-        activeBg="#1a2f57"
-        activeBorder="#3d6bc4"
-        activeTextColor="#7fb0ff"
-        onPress={onEightBeat}
-        style={styles.button}
-      />
-      <CdjButton
-        testID={`${idPrefix}loop-reloop-exit`}
-        label={active ? 'EXIT' : 'RELOOP'}
-        active={active}
-        activeBg="#1a2f57"
-        activeBorder="#3d6bc4"
-        activeTextColor="#7fb0ff"
-        disabled={!active && !hasLoop}
-        onPress={onReloopExit}
-        style={styles.button}
-      />
+      <View style={styles.row}>
+        <DeckButton
+          testID={`${idPrefix}loop-in`}
+          label={hasLoopStart ? 'IN ADJUST' : 'IN/CUE'}
+          sublabel="LOOP"
+          active={active}
+          led="orange"
+          onPress={onLoopIn}
+          style={styles.button}
+        />
+        <DeckButton
+          testID={`${idPrefix}loop-out`}
+          label={active ? 'OUT ADJUST' : 'OUT'}
+          sublabel="LOOP"
+          active={active}
+          led="orange"
+          disabled={!hasLoopStart}
+          onPress={onLoopOut}
+          style={styles.button}
+        />
+        <DeckButton
+          testID={`${idPrefix}loop-reloop-exit`}
+          label={active ? 'EXIT' : 'RELOOP'}
+          sublabel="RELOOP/EXIT"
+          active={active}
+          led="orange"
+          disabled={!active && !hasLoop}
+          onPress={onReloopExit}
+          style={styles.button}
+        />
+      </View>
+      <View style={styles.row}>
+        <DeckButton
+          testID={`${idPrefix}loop-4beat`}
+          label={active ? '1/2X' : '4 BEAT'}
+          sublabel="4 BEAT/1/2X"
+          active={active}
+          led="orange"
+          onPress={onFourBeat}
+          style={styles.button}
+        />
+        <DeckButton
+          testID={`${idPrefix}loop-8beat`}
+          label={active ? '2X' : '8 BEAT'}
+          sublabel="8 BEAT/2X"
+          active={active}
+          led="orange"
+          onPress={onEightBeat}
+          style={styles.button}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   group: {
+    gap: 6,
+  },
+  row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
   },
   button: {
-    width: 60,
-    height: 44,
+    width: 62,
+    height: 34,
   },
 });

@@ -22,8 +22,11 @@ already ran this once — re-run only on a clean clone):
 bun add -d playwright@1.62.1
 ```
 
-Playwright needs its own browser binary (not npm-installed). Download it
-once per machine — it's cached in `~/.cache/ms-playwright/`, not in the repo:
+Playwright needs its own browser binary (not npm-installed). If the
+machine already has one (e.g. Claude Code cloud sessions ship
+`/opt/pw-browsers/chromium`), point the driver at it with
+`PW_CHROMIUM_PATH=/opt/pw-browsers/chromium node .claude/skills/run-cdj-sim/driver.mjs`.
+Otherwise download it once per machine — it's cached in `~/.cache/ms-playwright/`, not in the repo:
 
 ```bash
 npx playwright install chromium
@@ -92,16 +95,17 @@ lsof -ti:8081 -sTCP:LISTEN | xargs -r kill
 ### Layout: two decks + one mixer, side by side
 
 The root route (`app/index.js`) renders `DECK A | DJM-V10 mixer | DECK B`
-inside one `horizontal` `ScrollView` (`testID="session-scroll"`, ~1460px
-of total content). At the default `420`-wide viewport you only see one
+inside one `horizontal` `ScrollView` (`testID="session-scroll"`, ~1640px
+of total content). At the default `420`-wide viewport you only see part of one
 column at a time — scroll it with `eval`, e.g.:
 
 ```
-eval document.querySelector('[data-testid="session-scroll"]').scrollBy({left: 420})
+eval document.querySelector('[data-testid="session-scroll"]').scrollBy({left: 580})
 ```
 
-(`420` lands on the mixer, `1040` lands on Deck B — content widths are
-Deck 420px + Mixer 620px + Deck 420px.) Each column also has its own
+(`580` lands on the mixer, `1060` lands on Deck B — content widths are
+Deck 580px + Mixer 480px + Deck 580px. `viewport 1700 1100` shows the
+whole setup at once.) Each column also has its own
 internal vertical `ScrollView` (deck: `testID="deckA-scroll"` /
 `"deckB-scroll"`; mixer: `testID="mixer-scroll"`) since a single column
 is taller than most viewports — scroll those the same way, or just use
@@ -121,9 +125,15 @@ prefixed `deckA-` or `deckB-`, e.g. `deckA-play-button`,
 `search-forward`, `jog-wheel`, `tempo-fader-thumb`, `tempo-range`,
 `tempo-master`, `tempo-reset`, `hotcue-A`..`hotcue-H`, `loop-4beat`,
 `loop-8beat`, `loop-reloop-exit`, `beatjump-back`, `beatjump-forward`,
-`beatjump-count`, `mode-reverse`, `mode-slip`, `mode-vinyl`,
-`browse-prev`, `browse-next`, `browse-load`, `time-toggle`, `scroll`
-(the deck's own vertical ScrollView).
+`beatjump-count`, `mode-slip`, `jog-mode`, `direction-FWD` /
+`direction-REV` / `direction-SLIP_REV`, `quantize`, `time-mode`,
+`browse-prev`, `browse-next`, `browse-load`, `time-toggle`, `screen-back`,
+`scroll` (the deck's own vertical ScrollView).
+
+The deck is styled after the black CDJ-3000X (palette: `cdj` in
+`constants/theme.js`, buttons: `components/DeckButton.js`). Like the
+hardware, the tempo fader reads − at the top and + at the bottom, so
+dragging `tempo-fader-thumb` *down* speeds the track up.
 
 **Mixer controls** (no per-instance prefix — there's only one mixer;
 channel ones are prefixed `mixer-ch1-` through `mixer-ch6-`): per

@@ -1,8 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '../constants/theme';
-import CdjButton from './CdjButton';
+import { cdj } from '../constants/theme';
+import DeckButton from './DeckButton';
 import TempoFader from './TempoFader';
 
+// Right-hand tempo section: range and MASTER TEMPO above the slider,
+// TEMPO RESET below it.
 export default function TempoControls({
   pitch,
   range,
@@ -15,64 +17,51 @@ export default function TempoControls({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.label}>TEMPO</Text>
-      <TempoFader pitch={pitch} range={range} onChange={onPitchChange} testID={`${idPrefix}tempo-fader-thumb`} />
-      <Text style={styles.pitchValue}>
-        {pitch > 0 ? '+' : ''}
-        {pitch.toFixed(1)}%
-      </Text>
-      <CdjButton
+      <DeckButton
         testID={`${idPrefix}tempo-range`}
         label={range === 100 ? 'WIDE' : `±${range}`}
-        sublabel="RANGE"
+        sublabel="TEMPO"
         onPress={onCycleRange}
         style={styles.smallButton}
       />
-      <CdjButton
+      <DeckButton
         testID={`${idPrefix}tempo-master`}
         label="MASTER"
         sublabel="TEMPO"
         active={masterTempo}
+        led="red"
         onPress={onToggleMasterTempo}
         style={styles.smallButton}
       />
-      <CdjButton
+      <TempoFader pitch={pitch} range={range} onChange={onPitchChange} testID={`${idPrefix}tempo-fader-thumb`} />
+      <DeckButton
         testID={`${idPrefix}tempo-reset`}
         label="TEMPO"
         sublabel="RESET"
+        active={pitch === 0}
+        led="green"
         onPress={onReset}
-        style={styles.resetButton}
-        textColor={colors.textMuted}
+        style={styles.smallButton}
       />
+      <Text style={styles.silk}>TEMPO</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   section: {
-    width: 84,
+    width: 92,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 11,
-    letterSpacing: 1,
-    fontWeight: '600',
-  },
-  pitchValue: {
-    color: colors.accent,
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '700',
+    gap: 8,
   },
   smallButton: {
     width: 64,
-    height: 40,
+    height: 30,
   },
-  resetButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  silk: {
+    color: cdj.silkDim,
+    fontSize: 7,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
 });
