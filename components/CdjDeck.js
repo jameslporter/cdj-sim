@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
-import { USB_LIBRARY } from '../constants/tracks';
+import { DEMO_FOLDER, USER_FOLDER } from '../constants/tracks';
 import BeatJumpControls from './BeatJumpControls';
 import BrowseRotary from './BrowseRotary';
 import BrowseScreen from './BrowseScreen';
@@ -21,25 +21,91 @@ import TrackSearchControls from './TrackSearchControls';
 import TransportControls from './TransportControls';
 import UsbRow from './UsbRow';
 
-export default function CdjDeck({ deck, label, idPrefix }) {
+function importLabel(library) {
+  if (!library.importSupported) return 'IMPORT TRACKS (WEB ONLY)';
+  if (library.importing) {
+    const { index, total } = library.importing;
+    return `ANALYZING ${index + 1}/${total}…`;
+  }
+  return '＋ IMPORT TRACKS…';
+}
+
+// The simulated USB drive's folder tree, rebuilt whenever the library changes.
+function buildBrowseTree(library) {
+  return [
+    {
+      type: 'folder',
+      name: DEMO_FOLDER,
+      children: library.demoTracks.map((track) => ({ type: 'track', track })),
+    },
+    {
+      type: 'folder',
+      name: USER_FOLDER,
+      children: [
+        { type: 'action', action: 'import', label: importLabel(library), disabled: !library.importSupported },
+        ...library.userTracks.map((track) => ({ type: 'track', track, deletable: true })),
+      ],
+    },
+  ];
+}
+
+function importSummary(result) {
+  if (!result) return null;
+  const parts = [];
+  if (result.added.length) parts.push(`${result.added.length} TRACK${result.added.length > 1 ? 'S' : ''} ADDED`);
+  if (result.failed.length) parts.push(`COULDN'T READ ${result.failed.map((f) => f.name).join(', ')}`);
+  return parts.join(' · ') || 'NO FILES CHOSEN';
+}
+
+export default function CdjDeck({ deck, library, label, idPrefix }) {
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
   const [vinylSpeedAdjust, setVinylSpeedAdjust] = useState(0.5);
-  const [browsePath, setBrowsePath] = useState([]); // stack of folder nodes entered
+  const [browsePath, setBrowsePath] = useState([]); // names of the folders entered
   const [browseSelection, setBrowseSelection] = useState(0);
+  const [browseStatus, setBrowseStatus] = useState(null);
 
-  const browseItems = browsePath.length === 0 ? USB_LIBRARY : browsePath[browsePath.length - 1].children;
-  const breadcrumb = ['USB1', ...browsePath.map((f) => f.name)];
+  const { demoTracks, userTracks, importing, importSupported } = library;
+  const tree = useMemo(
+    () => buildBrowseTree({ demoTracks, userTracks, importing, importSupported }),
+    [demoTracks, userTracks, importing, importSupported]
+  );
+  const browseItems = browsePath.reduce(
+    (items, name) => items.find((i) => i.type === 'folder' && i.name === name)?.children ?? [],
+    tree
+  );
+  const breadcrumb = ['USB1', ...browsePath];
+
+  const handleImport = async () => {
+    setBrowseStatus(null);
+    const result = await library.pickAndImport();
+    setBrowseStatus(importSummary(result));
+    if (result.added.length) {
+      // Highlight the first new track (row 0 is the import action).
+      setBrowseSelection(library.userTracks.length + 1);
+    }
+  };
 
   const activateBrowseItem = (index) => {
     const item = browseItems[index];
     if (!item) return;
     if (item.type === 'folder') {
-      setBrowsePath((p) => [...p, item]);
+      setBrowsePath((p) => [...p, item.name]);
       setBrowseSelection(0);
+      setBrowseStatus(null);
+    } else if (item.type === 'action') {
+      if (!item.disabled && !library.importing) handleImport();
     } else {
-      deck.handleLoadTrack(item.trackIndex);
+      deck.handleLoadTrack(item.track);
       setActiveScreen(null);
     }
+  };
+
+  const handleDeleteTrack = async (index) => {
+    const item = browseItems[index];
+    if (!item?.deletable) return;
+    await library.removeTrack(item.track.id);
+    setBrowseSelection((i) => Math.max(0, Math.min(i, browseItems.length - 2)));
+    setBrowseStatus(`DELETED ${item.track.title}`);
   };
 
   const handleBrowseSelect = (index) => {
@@ -102,6 +168,9 @@ export default function CdjDeck({ deck, label, idPrefix }) {
                       items={browseItems}
                       selectedIndex={browseSelection}
                       onSelectItem={handleBrowseSelect}
+                      onDeleteItem={handleDeleteTrack}
+                      loadedTrackId={deck.track.id}
+                      status={browseStatus || deck.loadError}
                       idPrefix={idPrefix}
                     />
                   ) : activeScreen ? (

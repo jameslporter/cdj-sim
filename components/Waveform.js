@@ -29,12 +29,24 @@ function WaveColumn({ amp, height, dim }) {
 
 // Overview waveform of the whole track (bottom strip of the CDJ screen).
 // Played part is greyed out, like the CDJ-3000X.
-export default function Waveform({ progressRatio, loopRange, height = 30, barCount = 90 }) {
+// Imported tracks carry real loudness `peaks` from analysis; demo tracks use
+// the synthetic envelope above.
+export default function Waveform({ progressRatio, loopRange, peaks, height = 30, barCount = 90 }) {
   const amps = useMemo(() => {
     const result = [];
-    for (let i = 0; i < barCount; i += 1) result.push(waveSample(i * 4.4));
+    for (let i = 0; i < barCount; i += 1) {
+      if (peaks?.length) {
+        const from = Math.floor((i / barCount) * peaks.length);
+        const to = Math.max(from + 1, Math.floor(((i + 1) / barCount) * peaks.length));
+        let m = 0;
+        for (let k = from; k < to; k += 1) m = Math.max(m, peaks[k]);
+        result.push(m);
+      } else {
+        result.push(waveSample(i * 4.4));
+      }
+    }
     return result;
-  }, [barCount]);
+  }, [barCount, peaks]);
 
   const clamped = Math.min(1, Math.max(0, progressRatio));
 
@@ -61,14 +73,15 @@ export default function Waveform({ progressRatio, loopRange, height = 30, barCou
 
 // Zoomed, scrolling waveform (main area of the CDJ screen). The track moves
 // past a fixed playhead in the centre.
-export function ZoomWaveform({ progressRatio, loopRange, height = 86, visibleBars = 72, totalBars = 1400 }) {
+export function ZoomWaveform({ progressRatio, loopRange, peaks, height = 86, visibleBars = 72, totalBars = 1400 }) {
   const pos = Math.min(1, Math.max(0, progressRatio)) * totalBars;
   const first = Math.floor(pos) - visibleBars / 2;
 
   const columns = [];
   for (let k = 0; k < visibleBars; k += 1) {
     const i = first + k;
-    const amp = i < 0 || i >= totalBars ? 0 : waveSample(i);
+    const sample = peaks?.length ? peaks[Math.floor((i / totalBars) * peaks.length)] : waveSample(i);
+    const amp = i < 0 || i >= totalBars ? 0 : sample;
     columns.push(<WaveColumn key={k} amp={amp} height={height} dim={false} />);
   }
 

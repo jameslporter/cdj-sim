@@ -1,14 +1,26 @@
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BEAT_JUMP_COUNTS, TEMPO_RANGES } from '../constants/theme';
 import { DEMO_TRACKS } from '../constants/tracks';
 import { clamp } from '../utils/format';
+import { getUserTrackUrl } from '../utils/trackStore';
 
 const EMPTY_HOT_CUES = Array(8).fill(null);
 const EMPTY_LOOP = { active: false, start: null, end: null };
 
-export default function useCdjDeck() {
-  const [trackIndex, setTrackIndex] = useState(0);
+// Demo tracks are bundled assets; imported tracks play from a blob: URL
+// read out of the browser's IndexedDB.
+async function resolveAudioSource(track) {
+  if (track.source === 'user') return { uri: await getUserTrackUrl(track.id) };
+  return track.file;
+}
+
+// `tracks` is the list TRACK SEARCH (|◀◀ / ▶▶|) steps through.
+export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
+  const [track, setTrack] = useState(DEMO_TRACKS[0]);
+  const [audioSource, setAudioSource] = useState(DEMO_TRACKS[0].file);
+  const [loadError, setLoadError] = useState(null);
+  const loadSeq = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [phantomElapsed, setPhantomElapsed] = useState(0);
   const [cuePoint, setCuePoint] = useState(0);
@@ -27,8 +39,7 @@ export default function useCdjDeck() {
   const [memoryCues, setMemoryCues] = useState([]);
   const [memoryCueIndex, setMemoryCueIndex] = useState(-1);
 
-  const track = DEMO_TRACKS[trackIndex];
-  const player = useAudioPlayer(track.file);
+  const player = useAudioPlayer(audioSource);
   const status = useAudioPlayerStatus(player);
 
   const elapsed = status.currentTime ?? 0;
@@ -36,10 +47,14 @@ export default function useCdjDeck() {
   const audioRate = 1 + pitch / 100;
   const rate = audioRate * (reverse ? -1 : 1);
   const displayedBpm = track.bpm * audioRate;
-  const beatDuration = 60 / displayedBpm;
+  // Positions are in track time (the file's own seconds), so one beat is
+  // 60 / the track's original BPM no matter where the tempo fader sits.
+  const beatDuration = 60 / track.bpm;
+  const firstBeat = track.firstBeat || 0;
   const shouldPlay = isPlaying && !isJogHeld;
 
-  const quantizeTime = (t) => (quantize ? Math.round(t / beatDuration) * beatDuration : t);
+  const quantizeTime = (t) =>
+    quantize ? Math.max(0, Math.round((t - firstBeat) / beatDuration) * beatDuration + firstBeat) : t;
 
   // Transport: actually start/stop the audio.
   useEffect(() => {
@@ -196,8 +211,21 @@ export default function useCdjDeck() {
     });
   };
 
-  const handleLoadTrack = (index) => {
-    setTrackIndex(index);
+  // Load a track object from the library onto this deck.
+  const handleLoadTrack = async (nextTrack) => {
+    if (!nextTrack) return;
+    const seq = ++loadSeq.current;
+    let source;
+    try {
+      source = await resolveAudioSource(nextTrack);
+    } catch (err) {
+      if (seq === loadSeq.current) setLoadError(String(err?.message || err));
+      return;
+    }
+    if (seq !== loadSeq.current) return; // a newer load won
+    setLoadError(null);
+    setTrack(nextTrack);
+    setAudioSource(source);
     setIsPlaying(false);
     setPhantomElapsed(0);
     setCuePoint(0);
@@ -208,7 +236,10 @@ export default function useCdjDeck() {
   };
 
   const handleChangeTrack = (direction) => {
-    handleLoadTrack((trackIndex + direction + DEMO_TRACKS.length) % DEMO_TRACKS.length);
+    if (tracks.length === 0) return;
+    const current = tracks.findIndex((t) => t.id === track.id);
+    const next = current < 0 ? 0 : (current + direction + tracks.length) % tracks.length;
+    handleLoadTrack(tracks[next]);
   };
 
   // MEMORY / CUE·LOOP CALL / DELETE: a second, separate cue-point system from
@@ -237,8 +268,16 @@ export default function useCdjDeck() {
     setMemoryCueIndex((i) => clamp(i - 1, -1, memoryCues.length - 2));
   };
 
+  // Loading a track creates a new player, so remember the mixer's volume and
+  // re-apply it to each new one.
+  const volumeRef = useRef(1);
+  useEffect(() => {
+    player.volume = volumeRef.current;
+  }, [player]);
+
   const setVolume = (v) => {
-    player.volume = clamp(v, 0, 1);
+    volumeRef.current = clamp(v, 0, 1);
+    player.volume = volumeRef.current;
   };
 
   const progressRatio = elapsed / duration;
@@ -249,6 +288,7 @@ export default function useCdjDeck() {
 
   return {
     track,
+    loadError,
     duration,
     isPlaying,
     elapsed,

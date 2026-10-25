@@ -6,11 +6,13 @@ import CdjDeck from '../components/CdjDeck';
 import DjmMixer from '../components/DjmMixer';
 import useCdjDeck from '../hooks/useCdjDeck';
 import useMixerState from '../hooks/useMixerState';
+import useTrackLibrary from '../hooks/useTrackLibrary';
 import { clamp } from '../utils/format';
 
 export default function CdjSimulator() {
-  const deckA = useCdjDeck();
-  const deckB = useCdjDeck();
+  const library = useTrackLibrary();
+  const deckA = useCdjDeck({ tracks: library.allTracks });
+  const deckB = useCdjDeck({ tracks: library.allTracks });
   const mixer = useMixerState({
     deckASignal: deckA.isPlaying && !deckA.isJogHeld,
     deckBSignal: deckB.isPlaying && !deckB.isJogHeld,
@@ -38,9 +40,9 @@ export default function CdjSimulator() {
         style={styles.horizontalScroll}
         contentContainerStyle={styles.horizontalContainer}
       >
-        <CdjDeck deck={deckA} label="DECK A" idPrefix="deckA-" />
+        <CdjDeck deck={deckA} library={library} label="DECK A" idPrefix="deckA-" />
         <DjmMixer mixer={mixer} />
-        <CdjDeck deck={deckB} label="DECK B" idPrefix="deckB-" />
+        <CdjDeck deck={deckB} library={library} label="DECK B" idPrefix="deckB-" />
       </ScrollView>
     </SafeAreaView>
   );
