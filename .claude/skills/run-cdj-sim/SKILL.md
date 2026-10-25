@@ -136,8 +136,9 @@ prefixed `deckA-` or `deckB-`, e.g. `deckA-play-button`,
 `screen-playlist`, `playlist-bank-1`..`playlist-bank-4`,
 `playlist-bank-deregister`, `preview-toggle`, `preview-wave-<row>` (Touch
 Preview column in BROWSE/PLAYLIST lists), `preview-badge`, `preview-stop`.
-Hot cues are stored per track in localStorage (`cdj-sim:hot-cues:v1`) and
-Playlist Banks per deck (`cdj-sim:playlist-bank:deckA-`).
+Hot cues are stored per track (`cdj-sim:hot-cues:v1`) and Playlist Banks
+per deck (`cdj-sim:playlist-bank:deckA-`) via AsyncStorage, which is
+localStorage on web, so the same keys show up there.
 
 Preview Hot Cue needs two touches at once (hold a preview waveform, press a
 hot cue pad). A mouse can't do that, so a mouse click on a preview waveform

@@ -3,12 +3,21 @@ import { loadJSON, saveJSON } from '../utils/storage';
 
 // Hot cues are saved with the track, the way rekordbox writes them to the
 // USB: load a track on either deck and its cues come back. One store shared
-// by both decks, remembered in the browser between visits.
+// by both decks, remembered on the device between sessions.
 const STORAGE_KEY = 'cdj-sim:hot-cues:v1';
 export const EMPTY_HOT_CUES = Object.freeze(Array(8).fill(null));
 
-let cuesByTrack = loadJSON(STORAGE_KEY, {});
+let cuesByTrack = {};
 const listeners = new Set();
+const notify = () => listeners.forEach((l) => l());
+
+// Load saved cues once at startup. Anything set before loading finished
+// wins over the saved copy.
+loadJSON(STORAGE_KEY, {}).then((saved) => {
+  if (!saved || typeof saved !== 'object') return;
+  cuesByTrack = { ...saved, ...cuesByTrack };
+  notify();
+});
 
 function subscribe(listener) {
   listeners.add(listener);
@@ -27,7 +36,7 @@ export function setTrackHotCues(trackId, update) {
   const next = typeof update === 'function' ? update(current) : update;
   cuesByTrack = { ...cuesByTrack, [trackId]: next };
   saveJSON(STORAGE_KEY, cuesByTrack);
-  listeners.forEach((l) => l());
+  notify();
 }
 
 export default function useTrackHotCues() {

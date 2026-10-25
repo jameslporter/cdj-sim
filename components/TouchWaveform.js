@@ -31,18 +31,14 @@ export default function TouchWaveform({
   const widthRef = useRef(1);
   const draggingRef = useRef(false);
 
-  const ratioOf = (e) => {
-    const ne = e.nativeEvent;
-    if (Platform.OS === 'web' && e.currentTarget?.getBoundingClientRect) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      return clamp((ne.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
-    }
-    return clamp((ne.offsetX ?? ne.locationX ?? 0) / widthRef.current, 0, 1);
-  };
+  // offsetX is relative to this view (its children don't take pointer
+  // events), on native and web alike.
+  const ratioOf = (e) => clamp((e.nativeEvent.offsetX ?? 0) / widthRef.current, 0, 1);
 
   const handleDown = (e) => {
     draggingRef.current = true;
-    if (Platform.OS === 'web') e.currentTarget?.setPointerCapture?.(e.nativeEvent.pointerId);
+    // Keep receiving moves if the finger slides off (where supported).
+    e.currentTarget?.setPointerCapture?.(e.nativeEvent.pointerId);
     onTouchStart?.(ratioOf(e), e.nativeEvent.pointerType === 'mouse');
   };
 
