@@ -208,9 +208,16 @@ export const LEARN_CONTENT = {
   },
   'vinyl-speed-adjust': {
     title: 'VINYL SPEED ADJUST',
-    what: 'Sets how quickly the track slows to a stop and starts back up when you press PLAY/PAUSE or touch the jog in vinyl mode.',
-    how: 'Turn it up for a turntable-style slowdown "brake" effect at the end of a track.',
-    note: 'Visual only in the sim for now.',
+    what: 'Sets how quickly the track comes back up to speed when you let go of the jog in VINYL mode.',
+    how: 'Keep it low for tight scratches. Turn it up for a slow, turntable-style start after a spinback.',
+    tip: 'In VINYL mode, flick the top of the jog backward and let go: the track swoops back, then rises to speed.',
+    note: 'In the sim it only sets the start-up after a release; the stop on touch is always instant.',
+  },
+  'jog-adjust': {
+    title: 'JOG ADJUST',
+    what: 'Sets how heavy the jog wheel feels: how hard it is to turn and how long it keeps spinning after you let go.',
+    how: 'Scratch DJs often like it light so the platter glides; others prefer it heavy so nudges stay small and controlled.',
+    tip: 'Turn it all the way down, flick the jog and watch how long it coasts. Then turn it up and try again.',
   },
   'mode-slip': {
     title: 'SLIP',
@@ -226,9 +233,9 @@ export const LEARN_CONTENT = {
   },
   'jog-wheel': {
     title: 'JOG WHEEL',
-    what: 'The big platter. Turning the outer edge nudges the speed to bring two tracks into time. In VINYL mode, touching the top stops the track so you can scratch. The center screen shows the play position and cue.',
+    what: 'The big platter. Turning the outer edge nudges the speed to bring two tracks into time. In VINYL mode, touching the top holds the track like a record, so dragging it plays the music forward or backward (scratching). The center screen shows the play position and cue.',
     how: 'After matching BPMs, DJs nudge the jog to line up the kick drums by ear. While paused, it moves through the track a frame at a time to find a precise cue point.',
-    tip: 'Turn on VINYL with JOG MODE, play a track, then hold the jog wheel.',
+    tip: 'Turn on VINYL with JOG MODE, play a track, then hold the top of the jog and drag it back and forth.',
   },
   'track-search': {
     title: 'TRACK SEARCH |◀◀ ▶▶|',
