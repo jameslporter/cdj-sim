@@ -85,6 +85,7 @@ export const LEARN_CONTENT = {
     title: 'PLAYER NUMBER',
     what: 'The number this deck has on the PRO DJ LINK network. Players are usually numbered left to right.',
     how: 'The mixer, other players and rekordbox use this number, so you know which deck is which when syncing or sharing tracks.',
+    tip: 'ON AIR: when this deck\'s mixer channel is live (fader up and not cut by the crossfader), the box turns red and so does the jog ring. Don\'t touch a deck that\'s on air unless you mean to!',
   },
   'display-track': {
     title: 'TRACK INFO',
@@ -92,9 +93,27 @@ export const LEARN_CONTENT = {
     how: 'A quick check that you loaded the track you meant to before you bring it in.',
   },
   'display-key': {
-    title: 'KEY',
-    what: 'The musical key of the track, detected by rekordbox (or by the sim when you import a song).',
+    title: 'KEY / KEY SHIFT',
+    what: 'The musical key of the track, detected by rekordbox (or by the sim when you import a song). It shows green when it mixes well with the sync master\'s key. Touch it to open the key panel: KEY SYNC, − / + to shift by a semitone, and RESET.',
     how: 'Harmonic mixing: tracks in the same or neighbouring keys blend without clashing. Many DJs use the key to choose the next track.',
+    tip: 'Touch the key, then + or − to hear the track move up or down without changing its tempo.',
+  },
+  'key-sync': {
+    title: 'KEY SYNC',
+    what: 'Changes this track\'s key to match the sync master\'s: the smallest change that gives the same key or a related one (dominant, subdominant or a relative key). The tempo doesn\'t change.',
+    how: 'Use it to blend two tracks whose keys clash, for a long mix where both melodies play together. Use it sparingly: big shifts sound unnatural.',
+    tip: 'Press MASTER on the other deck first so there\'s a key to sync to.',
+    note: 'Key changes use MASTER TEMPO, so it turns on. Turning MASTER TEMPO off puts the track back in its original key.',
+  },
+  'key-shift': {
+    title: 'KEY SHIFT − / +',
+    what: 'Moves the key down or up one semitone per press, without changing the tempo.',
+    how: 'For creative mashups, or to nudge a track into a key that suits the next one.',
+  },
+  'key-reset': {
+    title: 'KEY RESET',
+    what: 'Puts the track back in its original key.',
+    how: 'Reset after a key-shifted blend so the track plays as the artist made it.',
   },
   'display-zoom': {
     title: 'ZOOMED WAVEFORM',
@@ -247,7 +266,7 @@ export const LEARN_CONTENT = {
   },
   'jog-wheel': {
     title: 'JOG WHEEL',
-    what: 'The big platter. Turning the outer edge nudges the speed to bring two tracks into time. In VINYL mode, touching the top holds the track like a record, so dragging it plays the music forward or backward (scratching). The center screen shows the play position and cue.',
+    what: 'The big platter. Turning the outer edge nudges the speed to bring two tracks into time. In VINYL mode, touching the top holds the track like a record, so dragging it plays the music forward or backward (scratching). The centre screen shows the artwork, the play position pointer, the cue point marker, a blue SLIP pointer, and SLIP / SYNC / MASTER / VINYL indicators. The ring lights red when the deck is ON AIR, and blinks in the last 30 seconds of the track.',
     how: 'After matching BPMs, DJs nudge the jog to line up the kick drums by ear. While paused, it moves through the track a frame at a time to find a precise cue point.',
     tip: 'Turn on VINYL with JOG MODE, play a track, then hold the top of the jog and drag it back and forth.',
   },
@@ -630,6 +649,8 @@ const ALIASES = [
   [/^(ch-assign|mic-mode|filter-mode|sendfx-type|beatfx-xpad|beatfx-freq)(-.*)?$/, '$1'],
   [/^beatfx-effect-(prev|next)$/, 'beatfx-effect'],
   [/^beatfx-beat-(up|down)$/, 'beatfx-beat'],
+  [/^key-(up|down)$/, 'key-shift'],
+  [/^jog-display$/, 'jog-wheel'],
   [/^master-iso-(hi|mid|low)$/, 'master-iso'],
 ];
 

@@ -9,7 +9,7 @@ import useCdjDeck from '../hooks/useCdjDeck';
 import useMixerState from '../hooks/useMixerState';
 import useTrackLibrary from '../hooks/useTrackLibrary';
 import { clamp } from '../utils/format';
-import { getMixerEngine } from '../utils/mixerEngine';
+import { crossfaderGain, getMixerEngine } from '../utils/mixerEngine';
 import { beatFxInfo } from '../utils/beatFx';
 
 // Bring a BPM into the V10's 70–180 BPM measuring range.
@@ -32,12 +32,22 @@ export default function CdjSimulator() {
   const decksRef = useRef({});
   const getMasterBeatPos = () => (master ? decksRef.current[master]?.getBeatPos() : null);
   const syncBpmFor = (id) => (syncOn[id] && master && master !== id ? masterBpm : null);
+  // KEY SYNC matches the sync master's key (as it's playing, after its own
+  // KEY SHIFT). Kept in state so each deck can see the other's key.
+  const [deckKeys, setDeckKeys] = useState({ A: null, B: null });
+  const syncKeyFor = (id) => (master && master !== id ? deckKeys[master] : null);
 
   // Deck A is plugged into mixer channel 1, deck B into channel 2.
-  const deckA = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('A'), getMasterBeatPos, channel: 0 });
-  const deckB = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('B'), getMasterBeatPos, channel: 1 });
+  const deckA = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('A'), getMasterBeatPos, syncKey: syncKeyFor('A'), channel: 0 });
+  const deckB = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('B'), getMasterBeatPos, syncKey: syncKeyFor('B'), channel: 1 });
   decksRef.current = { A: deckA, B: deckB };
   if (__DEV__) globalThis.__cdjDecks = decksRef.current; // for poking at from the console
+
+  useEffect(() => {
+    if (deckKeys.A !== deckA.displayKey || deckKeys.B !== deckB.displayKey) {
+      setDeckKeys({ A: deckA.displayKey, B: deckB.displayKey });
+    }
+  }, [deckA.displayKey, deckB.displayKey, deckKeys]);
 
   const masterDeck = master ? decksRef.current[master] : null;
   const masterDisplayedBpm = masterDeck ? masterDeck.displayedBpm : null;
@@ -83,6 +93,7 @@ export default function CdjSimulator() {
 
   const syncProps = (id) => ({
     isMaster: master === id,
+    masterKey: syncKeyFor(id),
     syncOn: syncOn[id],
     getMasterBeatPos: master && master !== id ? getMasterBeatPos : null,
     onSync: () => handleSync(id),
@@ -104,6 +115,10 @@ export default function CdjSimulator() {
   useEffect(() => {
     if (engine) engine.apply({ channels, crossfader, master: mixerMaster, filter, headphones, sendFx });
   }, [engine, channels, crossfader, mixerMaster, filter, headphones, sendFx]);
+
+  // ON AIR: the mixer tells each player over PRO DJ LINK whether its channel
+  // is live (fader up and not cut by the crossfader).
+  const onAir = channels.map((ch) => ch.fader > 0.02 && crossfaderGain(ch.assign, crossfader) > 0.01);
 
   // BEAT FX tempo. In AUTO the V10 measures the BPM of the sound it's
   // assigned to (70–180 BPM); here that's the deck on that channel, or the
@@ -135,9 +150,9 @@ export default function CdjSimulator() {
         style={styles.horizontalScroll}
         contentContainerStyle={styles.horizontalContainer}
       >
-        <CdjDeck deck={deckA} sync={syncProps('A')} library={library} label="DECK A" idPrefix="deckA-" />
+        <CdjDeck deck={deckA} sync={syncProps('A')} library={library} label="DECK A" idPrefix="deckA-" onAir={onAir[0]} />
         <DjmMixer mixer={mixer} beatFxBpm={beatFxBpm} />
-        <CdjDeck deck={deckB} sync={syncProps('B')} library={library} label="DECK B" idPrefix="deckB-" />
+        <CdjDeck deck={deckB} sync={syncProps('B')} library={library} label="DECK B" idPrefix="deckB-" onAir={onAir[1]} />
       </ScrollView>
       <LearningPanel />
     </SafeAreaView>

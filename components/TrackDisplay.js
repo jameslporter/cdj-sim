@@ -8,6 +8,8 @@ import { waveSeed } from './Waveform';
 import ZoomWaveform from './ZoomWaveform';
 import PhaseMeter from './PhaseMeter';
 import useLivePosition from '../hooks/useLivePosition';
+import useBlink from '../hooks/useBlink';
+import { compatible, parseKey } from '../utils/musicKey';
 import { useLearnTarget } from '../hooks/useLearningMode';
 import LearnView from './LearnView';
 
@@ -33,6 +35,15 @@ export default function TrackDisplay({
   masterTempo,
   quantize,
   playerNumber,
+  onAir = false,
+  endWarning = false,
+  displayKey,
+  keyShift = 0,
+  keySync = false,
+  masterKey = null,
+  onToggleKeySync,
+  onShiftKey,
+  onResetKey,
   elapsed,
   duration,
   timeMode,
@@ -56,6 +67,13 @@ export default function TrackDisplay({
   const timeLearn = useLearnTarget(`${idPrefix}time-toggle`);
   const jumpLearn = useLearnTarget(`${idPrefix}beatjump-count`);
   const [jumpPanelOpen, setJumpPanelOpen] = useState(false);
+  const [keyPanelOpen, setKeyPanelOpen] = useState(false);
+  const keyLearn = useLearnTarget(`${idPrefix}display-key`);
+  const shownKey = displayKey ?? track.key;
+  // Green when it mixes well with the sync master's key.
+  const keyA = parseKey(shownKey);
+  const keyB = parseKey(masterKey);
+  const keyMatches = keyA && keyB ? compatible(keyA, keyB) : false;
 
   // Live position for the scrolling waveform, phase meter and countdown.
   const position = useLivePosition(getPosition, isPlaying || masterRunning(getMasterBeatPos), elapsed);
@@ -63,15 +81,20 @@ export default function TrackDisplay({
   const firstBeat = track.firstBeat || 0;
   const beatPos = (position - firstBeat) / beat;
   const masterBeatPos = getMasterBeatPos ? getMasterBeatPos() : null;
+  const endWarn = useBlink(endWarning, 400) && endWarning;
   const countdown = beatCountdown(position, memoryCues, beat);
   const loopTimes = loopRange ? { start: loopRange.startRatio * duration, end: loopRange.endRatio * duration } : null;
 
   return (
     <View style={styles.display}>
       <View style={styles.header}>
-        <LearnView testID={`${idPrefix}display-player`} learnId={`${idPrefix}display-player`} style={styles.playerBadge}>
-          <Text style={styles.playerLabel}>PLAYER</Text>
-          <Text style={styles.playerNumber}>{playerNumber}</Text>
+        <LearnView
+          testID={`${idPrefix}display-player`}
+          learnId={`${idPrefix}display-player`}
+          style={[styles.playerBadge, onAir && styles.playerBadgeOnAir]}
+        >
+          <Text style={[styles.playerLabel, onAir && styles.playerTextOnAir]}>{onAir ? 'ON AIR' : 'PLAYER'}</Text>
+          <Text style={[styles.playerNumber, onAir && styles.playerTextOnAir]}>{playerNumber}</Text>
         </LearnView>
         <LearnView testID={`${idPrefix}display-track`} learnId={`${idPrefix}display-track`} style={styles.trackInfo}>
           <Text style={styles.trackTitle} numberOfLines={1}>
@@ -98,11 +121,45 @@ export default function TrackDisplay({
         >
           <Text style={[styles.touchKeyText, gateCue && styles.touchKeyTextOn]}>GATE CUE</Text>
         </Pressable>
-        <LearnView testID={`${idPrefix}display-key`} learnId={`${idPrefix}display-key`} style={styles.keyBox}>
-          <Text style={styles.metricLabel}>KEY</Text>
-          <Text style={styles.keyValue}>{track.key}</Text>
-        </LearnView>
+        <Pressable
+          {...keyLearn.props}
+          testID={`${idPrefix}display-key`}
+          onPress={() => setKeyPanelOpen((o) => !o)}
+          style={[styles.keyBox, keyPanelOpen && styles.keyBoxOpen, keyLearn.style]}
+        >
+          <Text style={styles.metricLabel}>
+            KEY{keyShift ? ` ${keyShift > 0 ? '+' : ''}${keyShift}` : ''}
+          </Text>
+          <Text style={[styles.keyValue, !keyMatches && styles.keyValuePlain]}>{shownKey}</Text>
+        </Pressable>
       </View>
+
+      {keyPanelOpen ? (
+        <View style={[styles.jumpPanel, styles.keyPanel]} testID={`${idPrefix}key-panel`}>
+          <Pressable
+            testID={`${idPrefix}key-sync`}
+            onPress={onToggleKeySync}
+            style={[styles.jumpOption, keySync && styles.jumpOptionOn]}
+          >
+            <Text style={[styles.jumpOptionText, keySync && styles.jumpOptionTextOn]}>KEY SYNC</Text>
+          </Pressable>
+          <Pressable testID={`${idPrefix}key-down`} onPress={() => onShiftKey(-1)} style={styles.jumpOption}>
+            <Text style={styles.jumpOptionText}>−</Text>
+          </Pressable>
+          <View style={styles.keyShiftValue}>
+            <Text style={styles.jumpOptionText}>
+              {keyShift > 0 ? '+' : ''}
+              {keyShift}
+            </Text>
+          </View>
+          <Pressable testID={`${idPrefix}key-up`} onPress={() => onShiftKey(1)} style={styles.jumpOption}>
+            <Text style={styles.jumpOptionText}>+</Text>
+          </Pressable>
+          <Pressable testID={`${idPrefix}key-reset`} onPress={onResetKey} style={styles.jumpOption}>
+            <Text style={styles.jumpOptionText}>RESET</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {jumpPanelOpen ? (
         <View style={styles.jumpPanel} testID={`${idPrefix}beatjump-panel`}>
@@ -150,7 +207,7 @@ export default function TrackDisplay({
 
       {/* Touch the overview: needle search while paused, Touch Cue
           (preview that spot) while playing. */}
-      <View style={styles.overview}>
+      <View style={[styles.overview, endWarn && styles.overviewWarn]}>
         <TouchWaveform
           testID={`${idPrefix}overview-waveform`}
           seed={seed}
@@ -368,6 +425,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  playerBadgeOnAir: {
+    backgroundColor: cdj.onAir,
+    borderColor: cdj.onAir,
+  },
+  playerTextOnAir: {
+    color: '#fff',
+  },
   playerLabel: {
     color: cdj.screenTextDim,
     fontSize: 6,
@@ -414,11 +478,33 @@ const styles = StyleSheet.create({
   },
   keyBox: {
     alignItems: 'flex-end',
+    paddingHorizontal: 4,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  keyBoxOpen: {
+    borderColor: '#cfd6de',
+  },
+  keyPanel: {
+    left: undefined,
+    width: 300,
+  },
+  keyShiftValue: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keyValuePlain: {
+    color: cdj.screenText,
   },
   keyValue: {
     color: '#7cf27c',
     fontSize: 15,
     fontWeight: '800',
+  },
+  overviewWarn: {
+    backgroundColor: 'rgba(255, 42, 42, 0.35)',
   },
   overview: {
     paddingHorizontal: 8,

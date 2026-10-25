@@ -64,7 +64,7 @@ function importSummary(result) {
 
 const LIST_SCREENS = ['BROWSE', 'PLAYLIST'];
 
-export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
+export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir = false }) {
   const { preview } = deck;
   const bank = usePlaylistBank(`cdj-sim:playlist-bank:${idPrefix}`);
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
@@ -243,6 +243,9 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
   };
 
   const playerNumber = idPrefix.startsWith('deckB') ? 2 : 1;
+  // Track end warning: the last 30 seconds flash (UTILITY default), unless looping.
+  const endWarning =
+    deck.isPlaying && !deck.loop.active && deck.duration > 0 && deck.duration - deck.elapsed <= 30 && !deck.reverse;
   const toggleTimeMode = () => deck.setTimeMode((m) => (m === 'ELAPSED' ? 'REMAIN' : 'ELAPSED'));
 
   return (
@@ -318,6 +321,15 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                       masterTempo={deck.masterTempo}
                       quantize={deck.quantize}
                       playerNumber={playerNumber}
+                      onAir={onAir}
+                      endWarning={endWarning}
+                      displayKey={deck.displayKey}
+                      keyShift={deck.keyShift}
+                      keySync={deck.keySync}
+                      masterKey={sync.masterKey}
+                      onToggleKeySync={deck.toggleKeySync}
+                      onShiftKey={deck.shiftKey}
+                      onResetKey={deck.resetKey}
                       elapsed={deck.elapsed}
                       duration={deck.duration}
                       timeMode={deck.timeMode}
@@ -472,6 +484,13 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                   vinylMode={deck.vinylMode}
                   jogAdjust={deck.jogAdjust}
                   jog={deck.jog}
+                  cuePoint={deck.cuePoint}
+                  getSlipPosition={deck.slipping ? deck.slipPosition : null}
+                  onAir={onAir}
+                  endWarning={endWarning}
+                  track={deck.track}
+                  synced={sync.syncOn}
+                  isMaster={sync.isMaster}
                   idPrefix={idPrefix}
                 />
                 <View style={styles.underJog}>

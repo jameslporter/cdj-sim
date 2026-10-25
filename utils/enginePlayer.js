@@ -42,6 +42,7 @@ export class EnginePlayer {
     this.playing = false;
     this.rate = 1;
     this.correctPitch = false;
+    this.keyShift = 0; // semitones, applied with pitch correction (KEY SHIFT)
     this.loopRange = null;
     this.reverse = false;
     this.reversedBuffer = null; // made the first time DIRECTION is reversed
@@ -122,6 +123,8 @@ export class EnginePlayer {
     const source = this.correctPitch ? ctx.createBufferSource({ pitchCorrection: true }) : ctx.createBufferSource();
     source.buffer = this.reverse ? this.getReversedBuffer() : this.buffer;
     source.playbackRate.value = this.rate;
+    // With pitch correction, detune moves the key without changing the speed.
+    if (this.correctPitch && this.keyShift && source.detune) source.detune.value = this.keyShift * 100;
     if (this.loopRange && !this.reverse) {
       source.loop = true;
       source.loopStart = this.loopRange.start;
@@ -197,6 +200,19 @@ export class EnginePlayer {
         this.voice.source.playbackRate.setValueAtTime(rate, this.ctx.currentTime);
       } catch {
         this.voice.source.playbackRate.value = rate;
+      }
+    }
+  }
+
+  /** KEY SHIFT in semitones. It only applies with MASTER TEMPO on. */
+  setKeyShift(semitones) {
+    if (semitones === this.keyShift) return;
+    this.keyShift = semitones;
+    if (this.voice && this.correctPitch) {
+      try {
+        this.voice.source.detune.setValueAtTime(semitones * 100, this.ctx.currentTime);
+      } catch {
+        this.restart();
       }
     }
   }

@@ -10,6 +10,7 @@ import { getMixerEngine } from '../utils/mixerEngine';
 import useTouchPreview from './useTouchPreview';
 import useTrackHotCues from './useTrackHotCues';
 import useTrackMemoryCues, { getTrackMemoryCues } from './useTrackMemoryCues';
+import { keySyncShift, parseKey, shiftKeyText } from '../utils/musicKey';
 
 const EMPTY_LOOP = { active: false, start: null, end: null };
 const AUTO_CUE_KEY = 'cdj-sim:auto-cue:v1';
@@ -55,9 +56,16 @@ const SYNC_TOLERANCE_BEATS = 0.04;
  *  - `tracks` is the list TRACK SEARCH (|◀◀ / ▶▶|) steps through.
  *  - `syncBpm`: the master deck's BPM while BEAT SYNC follows it, else null.
  *  - `getMasterBeatPos()`: the master deck's live beat position, for phase.
+ *  - `syncKey`: the sync master's current key, for KEY SYNC (else null).
  *  - `channel`: the mixer channel (0-based) the deck is plugged into.
  */
-export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMasterBeatPos = null, channel = 0 } = {}) {
+export default function useCdjDeck({
+  tracks = DEMO_TRACKS,
+  syncBpm = null,
+  getMasterBeatPos = null,
+  syncKey = null,
+  channel = 0,
+} = {}) {
   const [track, setTrack] = useState(DEMO_TRACKS[0]);
   const [audioSource, setAudioSource] = useState(DEMO_TRACKS[0].file);
   const [loadError, setLoadError] = useState(null);
@@ -66,7 +74,11 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   const [cuePoint, setCuePoint] = useState(0);
   const [pitch, setPitch] = useState(0);
   const [pitchRange, setPitchRange] = useState(6);
-  const [masterTempo, setMasterTempo] = useState(false);
+  const [masterTempo, setMasterTempoState] = useState(false);
+  // KEY SHIFT (semitones) and KEY SYNC. Both play with MASTER TEMPO on, so
+  // the key moves without changing the tempo.
+  const [keyShift, setKeyShift] = useState(0);
+  const [keySync, setKeySync] = useState(false);
   const [reverse, setReverse] = useState(false);
   const [slip, setSlip] = useState(false);
   const [vinylMode, setVinylMode] = useState(true);
@@ -206,6 +218,18 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     player.shouldCorrectPitch = masterTempo;
     player.setPlaybackRate(audioRate);
   }, [audioRate, masterTempo, player]);
+
+  useEffect(() => {
+    player.setKeyShift?.(keyShift);
+  }, [keyShift, player]);
+
+  // KEY SYNC follows the sync master's key: the least change that gives the
+  // same key or a related one (dominant, subdominant or a relative).
+  useEffect(() => {
+    if (!keySync) return;
+    const shift = keySyncShift(track.key, syncKey);
+    if (shift != null) setKeyShift(shift);
+  }, [keySync, syncKey, track.key]);
 
   // BEAT SYNC keeps the beats locked: if the deck drifts out of phase (a
   // jog nudge, a seek, audio clock wobble) it's pulled back in. A seek takes
@@ -598,6 +622,42 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   // Load a track object from the library onto this deck. With Auto Cue on
   // it parks just before the first sound; `at` starts somewhere else instead
   // (INST DOUBLES), and `play` starts it playing.
+  // MASTER TEMPO off also puts the track back in its original key.
+  const setMasterTempo = (next) => {
+    setMasterTempoState((prev) => {
+      const on = typeof next === 'function' ? next(prev) : next;
+      if (!on) {
+        setKeyShift(0);
+        setKeySync(false);
+      }
+      return on;
+    });
+  };
+
+  const toggleKeySync = () => {
+    if (keySync) {
+      setKeySync(false);
+      setKeyShift(0);
+      return;
+    }
+    // Only analysed tracks (with a key) can be key-synced.
+    if (keySyncShift(track.key, syncKey) == null) return;
+    setKeySync(true);
+    setMasterTempoState(true);
+  };
+
+  const shiftKey = (delta) => {
+    if (!parseKey(track.key)) return;
+    setKeySync(false);
+    setMasterTempoState(true);
+    setKeyShift((k) => Math.max(-12, Math.min(12, k + delta)));
+  };
+
+  const resetKey = () => {
+    setKeySync(false);
+    setKeyShift(0);
+  };
+
   const handleLoadTrack = async (nextTrack, { play = false, at = null } = {}) => {
     if (!nextTrack) return;
     preview.stop();
@@ -614,6 +674,8 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     jog.cancel();
     setLoadError(null);
     setTrack(nextTrack);
+    setKeyShift(0);
+    setKeySync(false);
     setAudioSource(source);
     setIsPlaying(false);
     cueHoldRef.current = null;
@@ -716,6 +778,12 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     deleteHeld,
     pitchRange,
     masterTempo,
+    keyShift,
+    keySync,
+    displayKey: shiftKeyText(track.key, keyShift),
+    toggleKeySync,
+    shiftKey,
+    resetKey,
     reverse,
     slip,
     slipping,
