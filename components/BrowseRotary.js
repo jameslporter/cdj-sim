@@ -1,37 +1,34 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../constants/theme';
+import { cdj } from '../constants/theme';
 
-export default function BrowseRotary({ label, onPrev, onNext, onLoad, idPrefix = '' }) {
+// The rotary selector: turn (▲/▼) to move through the list, push to load.
+export default function BrowseRotary({ onPrev, onNext, onLoad, idPrefix = '' }) {
   return (
     <View style={styles.container}>
-      <View style={styles.trackLabel}>
-        <Text style={styles.trackText} numberOfLines={1}>
-          {label}
-        </Text>
-      </View>
-      <View style={styles.knobRow}>
-        <Pressable
-          testID={`${idPrefix}browse-prev`}
-          style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}
-          onPress={onPrev}
-        >
-          <Text style={styles.arrowText}>▲</Text>
-        </Pressable>
-        <Pressable
-          testID={`${idPrefix}browse-load`}
-          style={({ pressed }) => [styles.knob, pressed && styles.pressed]}
-          onPress={onLoad}
-        >
-          <Text style={styles.knobText}>LOAD</Text>
-        </Pressable>
-        <Pressable
-          testID={`${idPrefix}browse-next`}
-          style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}
-          onPress={onNext}
-        >
-          <Text style={styles.arrowText}>▼</Text>
-        </Pressable>
-      </View>
+      <Pressable
+        testID={`${idPrefix}browse-prev`}
+        style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}
+        onPress={onPrev}
+      >
+        <Text style={styles.arrowText}>▲</Text>
+      </Pressable>
+      <Pressable
+        testID={`${idPrefix}browse-load`}
+        style={({ pressed }) => [styles.knob, pressed && styles.knobPressed]}
+        onPress={onLoad}
+      >
+        <View style={styles.knobCap}>
+          <View style={styles.knobGrip} />
+          <Text style={styles.knobText}>PUSH</Text>
+        </View>
+      </Pressable>
+      <Pressable
+        testID={`${idPrefix}browse-next`}
+        style={({ pressed }) => [styles.arrow, pressed && styles.pressed]}
+        onPress={onNext}
+      >
+        <Text style={styles.arrowText}>▼</Text>
+      </Pressable>
     </View>
   );
 }
@@ -39,50 +36,58 @@ export default function BrowseRotary({ label, onPrev, onNext, onLoad, idPrefix =
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    gap: 4,
-  },
-  trackLabel: {
-    maxWidth: 100,
-  },
-  trackText: {
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-  knobRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   arrow: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.buttonBg,
-    borderWidth: 1,
-    borderColor: colors.buttonBorder,
+    width: 30,
+    height: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   arrowText: {
-    color: colors.textMuted,
-    fontSize: 9,
+    color: cdj.silkDim,
+    fontSize: 8,
   },
   knob: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#161616',
-    borderWidth: 3,
-    borderColor: '#2c2c2c',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#0c0c0d',
+    borderWidth: 1,
+    borderColor: '#3a3d41',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0px 3px 4px rgba(0, 0, 0, 0.7)',
+  },
+  knobPressed: {
+    transform: [{ scale: 0.96 }],
+    boxShadow: 'none',
+  },
+  knobCap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1e1f22',
+    borderWidth: 1,
+    borderColor: '#2e3134',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  knobGrip: {
+    position: 'absolute',
+    top: 3,
+    width: 2,
+    height: 7,
+    borderRadius: 1,
+    backgroundColor: cdj.silk,
+  },
   knobText: {
-    color: colors.accent,
-    fontSize: 8,
+    color: cdj.silkDim,
+    fontSize: 7,
     fontWeight: '700',
+    marginTop: 6,
   },
   pressed: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
 });

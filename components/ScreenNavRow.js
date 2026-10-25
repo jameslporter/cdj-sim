@@ -1,13 +1,14 @@
 import { StyleSheet, View } from 'react-native';
-import CdjButton from './CdjButton';
+import DeckButton from './DeckButton';
 
 const SCREENS = ['SOURCE', 'BROWSE', 'TAG LIST', 'PLAYLIST', 'SEARCH'];
 
-export default function ScreenNavRow({ activeScreen, onSelect, onMenu, onBack, idPrefix = '' }) {
+// The column of screen buttons down the left side of the CDJ-3000X display.
+export default function ScreenNavRow({ activeScreen, onSelect, onMenu, idPrefix = '' }) {
   return (
-    <View style={styles.row}>
+    <View style={styles.column}>
       {SCREENS.map((screen) => (
-        <CdjButton
+        <DeckButton
           key={screen}
           testID={`${idPrefix}screen-${screen.toLowerCase().replace(' ', '-')}`}
           label={screen}
@@ -17,17 +18,11 @@ export default function ScreenNavRow({ activeScreen, onSelect, onMenu, onBack, i
           labelStyle={styles.label}
         />
       ))}
-      <CdjButton
+      <DeckButton
         testID={`${idPrefix}screen-menu`}
         label="MENU"
+        sublabel="UTILITY"
         onPress={onMenu}
-        style={styles.button}
-        labelStyle={styles.label}
-      />
-      <CdjButton
-        testID={`${idPrefix}screen-back`}
-        label="BACK"
-        onPress={onBack}
         style={styles.button}
         labelStyle={styles.label}
       />
@@ -36,16 +31,16 @@ export default function ScreenNavRow({ activeScreen, onSelect, onMenu, onBack, i
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: 4,
+  column: {
+    gap: 6,
+    justifyContent: 'space-between',
   },
   button: {
-    flex: 1,
-    height: 26,
+    width: 58,
+    height: 30,
     paddingHorizontal: 2,
   },
   label: {
-    fontSize: 7,
+    fontSize: 8,
   },
 });

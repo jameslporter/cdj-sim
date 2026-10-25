@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../constants/theme';
+import { cdj } from '../constants/theme';
 import { DEMO_TRACKS } from '../constants/tracks';
 import { formatTime } from '../utils/format';
 
@@ -55,25 +55,27 @@ export default function BrowseScreen({ breadcrumb, items, selectedIndex, onSelec
 
 const styles = StyleSheet.create({
   display: {
-    backgroundColor: colors.panelBg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.panelBorder,
-    padding: 14,
-    gap: 8,
-    minHeight: 176,
+    flex: 1,
+    backgroundColor: cdj.screenBg,
+    gap: 4,
   },
   breadcrumb: {
-    color: colors.textSecondary,
-    fontSize: 11,
+    color: cdj.screenText,
+    backgroundColor: cdj.screenPanel,
+    borderBottomWidth: 1,
+    borderBottomColor: cdj.screenDivider,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   list: {
-    gap: 2,
+    gap: 1,
+    paddingHorizontal: 4,
   },
   emptyText: {
-    color: colors.textMuted,
+    color: cdj.screenTextDim,
     fontSize: 12,
     padding: 8,
   },
@@ -81,17 +83,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 8,
-    borderRadius: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#11151a',
     gap: 8,
   },
   rowSelected: {
-    backgroundColor: colors.accentDim,
+    backgroundColor: '#1d4f9e',
   },
   folderText: {
-    color: colors.textPrimary,
-    fontSize: 14,
+    color: cdj.screenText,
+    fontSize: 13,
     fontWeight: '700',
   },
   trackInfo: {
@@ -99,20 +102,20 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   trackTitle: {
-    color: colors.textPrimary,
-    fontSize: 13,
+    color: cdj.screenText,
+    fontSize: 12,
     fontWeight: '700',
   },
   trackArtist: {
-    color: colors.textSecondary,
-    fontSize: 11,
+    color: cdj.screenTextDim,
+    fontSize: 10,
   },
   trackMeta: {
-    color: colors.textSecondary,
-    fontSize: 11,
+    color: cdj.screenTextDim,
+    fontSize: 10,
     fontVariant: ['tabular-nums'],
   },
   selectedText: {
-    color: colors.textPrimary,
+    color: '#ffffff',
   },
 });
