@@ -130,6 +130,22 @@ prefixed `deckA-` or `deckB-`, e.g. `deckA-play-button`,
 `browse-prev`, `browse-next`, `browse-load`, `time-toggle`, `screen-back`,
 `scroll` (the deck's own vertical ScrollView).
 
+3000X touch-screen features (same `deckA-`/`deckB-` prefix):
+`gate-cue` (GATE CUE touch key on the playback screen), `overview-waveform`
+(touch: needle search when paused, Touch Cue preview when playing),
+`screen-playlist`, `playlist-bank-1`..`playlist-bank-4`,
+`playlist-bank-deregister`, `preview-toggle`, `preview-wave-<row>` (Touch
+Preview column in BROWSE/PLAYLIST lists), `preview-badge`, `preview-stop`.
+Hot cues are stored per track (`cdj-sim:hot-cues:v1`) and Playlist Banks
+per deck (`cdj-sim:playlist-bank:deckA-`) via AsyncStorage, which is
+localStorage on web, so the same keys show up there.
+
+Preview Hot Cue needs two touches at once (hold a preview waveform, press a
+hot cue pad). A mouse can't do that, so a mouse click on a preview waveform
+*latches* the preview until `preview-stop` is clicked; click a pad while it
+plays. To test the real two-finger path, use a `hasTouch` context and CDP
+`Input.dispatchTouchEvent` (on `touchEnd`, list the point being lifted).
+
 **Importing your own tracks** (web only, stored in the browser's
 IndexedDB — see `utils/trackStore.js`): BROWSE → `browse-row-1` ("My
 Tracks") → `browse-row-0` ("＋ IMPORT TRACKS…") opens a file picker.

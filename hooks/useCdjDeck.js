@@ -2,18 +2,12 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useEffect, useRef, useState } from 'react';
 import { BEAT_JUMP_COUNTS, TEMPO_RANGES } from '../constants/theme';
 import { DEMO_TRACKS } from '../constants/tracks';
+import { resolveAudioSource } from '../utils/audioSource';
 import { clamp } from '../utils/format';
-import { getUserTrackUrl } from '../utils/trackStore';
+import useTouchPreview from './useTouchPreview';
+import useTrackHotCues from './useTrackHotCues';
 
-const EMPTY_HOT_CUES = Array(8).fill(null);
 const EMPTY_LOOP = { active: false, start: null, end: null };
-
-// Demo tracks are bundled assets; imported tracks play from a blob: URL
-// read out of the browser's IndexedDB.
-async function resolveAudioSource(track) {
-  if (track.source === 'user') return { uri: await getUserTrackUrl(track.id) };
-  return track.file;
-}
 
 // `tracks` is the list TRACK SEARCH (|◀◀ / ▶▶|) steps through.
 export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
@@ -32,12 +26,24 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   const [vinylMode, setVinylMode] = useState(true);
   const [isJogHeld, setIsJogHeld] = useState(false);
   const [timeMode, setTimeMode] = useState('ELAPSED');
-  const [hotCues, setHotCues] = useState(EMPTY_HOT_CUES);
   const [loop, setLoop] = useState(EMPTY_LOOP);
   const [beatJumpCount, setBeatJumpCount] = useState(4);
   const [quantize, setQuantize] = useState(true);
   const [memoryCues, setMemoryCues] = useState([]);
   const [memoryCueIndex, setMemoryCueIndex] = useState(-1);
+  const [gateCue, setGateCue] = useState(false);
+  // The hot cue pad currently held for gate playback: { index, time, keepPlaying }.
+  const gateRef = useRef(null);
+  // Set on press-in when the pad press was already handled (gate playback
+  // or Preview Hot Cue), so the click that follows doesn't act again.
+  const padHandledRef = useRef(false);
+  const preview = useTouchPreview();
+
+  // Hot cues live with the track (like rekordbox stores them on the USB),
+  // so they come back whenever the track is loaded, on either deck.
+  const trackHotCues = useTrackHotCues();
+  const hotCues = trackHotCues.get(track.id);
+  const setHotCues = (update) => trackHotCues.set(track.id, update);
 
   const player = useAudioPlayer(audioSource);
   const status = useAudioPlayerStatus(player);
@@ -50,11 +56,15 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   // Positions are in track time (the file's own seconds), so one beat is
   // 60 / the track's original BPM no matter where the tempo fader sits.
   const beatDuration = 60 / track.bpm;
-  const firstBeat = track.firstBeat || 0;
   const shouldPlay = isPlaying && !isJogHeld;
 
-  const quantizeTime = (t) =>
-    quantize ? Math.max(0, Math.round((t - firstBeat) / beatDuration) * beatDuration + firstBeat) : t;
+  // Snap to a track's beat grid (by default the loaded track's).
+  const quantizeTime = (t, forTrack = track) => {
+    if (!quantize || !forTrack.bpm) return t;
+    const beat = 60 / forTrack.bpm;
+    const first = forTrack.firstBeat || 0;
+    return Math.max(0, Math.round((t - first) / beat) * beat + first);
+  };
 
   // Transport: actually start/stop the audio.
   useEffect(() => {
@@ -100,11 +110,16 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     player.seekTo(0).catch(() => {});
     setPhantomElapsed(0);
     setCuePoint(0);
-    setHotCues(EMPTY_HOT_CUES);
     setLoop(EMPTY_LOOP);
   };
 
   const handlePlayPause = () => {
+    // Pressing PLAY while a gate cue is held keeps the track playing after
+    // the pad is released.
+    if (gateRef.current) {
+      gateRef.current.keepPlaying = true;
+      return;
+    }
     setIsPlaying((prev) => {
       if (prev) {
         setCuePoint(elapsed);
@@ -128,7 +143,57 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     setPhantomElapsed(next);
   };
 
+  // Needle search: touching the overview waveform while paused jumps there.
+  const handleNeedleSearch = (time) => {
+    const next = clamp(time, 0, duration);
+    player.seekTo(next).catch(() => {});
+    setPhantomElapsed(next);
+  };
+
+  // Hot cue pads fire on press-in first. Two 3000X features act here:
+  //  - Preview Hot Cue: while a waveform is being touched to preview a
+  //    track, the pad stores a hot cue on *that* track at the preview spot.
+  //  - Gate Cue: while paused, the track plays from the cue only for as long
+  //    as the pad is held.
+  const handleHotCuePressIn = (i) => {
+    padHandledRef.current = false;
+    if (preview.active && preview.track) {
+      const target = preview.track;
+      const time = quantizeTime(preview.currentTime(), target);
+      trackHotCues.set(target.id, (prev) => {
+        const next = [...prev];
+        next[i] = { time };
+        return next;
+      });
+      padHandledRef.current = true;
+      return;
+    }
+    const cue = hotCues[i];
+    if (gateCue && cue && !isPlaying) {
+      player.seekTo(cue.time).catch(() => {});
+      setPhantomElapsed(cue.time);
+      setIsPlaying(true);
+      gateRef.current = { index: i, time: cue.time, keepPlaying: false };
+      padHandledRef.current = true;
+    }
+  };
+
+  const handleHotCuePressOut = (i) => {
+    const gate = gateRef.current;
+    if (!gate || gate.index !== i) return;
+    gateRef.current = null;
+    if (!gate.keepPlaying) {
+      setIsPlaying(false);
+      player.seekTo(gate.time).catch(() => {});
+      setPhantomElapsed(gate.time);
+    }
+  };
+
   const handleHotCuePress = (i) => {
+    if (padHandledRef.current) {
+      padHandledRef.current = false;
+      return;
+    }
     const cue = hotCues[i];
     if (cue) {
       if (slip) return;
@@ -143,6 +208,8 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   };
 
   const handleHotCueLongPress = (i) => {
+    // A long hold during gate playback or a preview isn't a delete.
+    if (padHandledRef.current) return;
     const next = [...hotCues];
     next[i] = null;
     setHotCues(next);
@@ -214,6 +281,8 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   // Load a track object from the library onto this deck.
   const handleLoadTrack = async (nextTrack) => {
     if (!nextTrack) return;
+    preview.stop();
+    gateRef.current = null;
     const seq = ++loadSeq.current;
     let source;
     try {
@@ -229,7 +298,6 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     setIsPlaying(false);
     setPhantomElapsed(0);
     setCuePoint(0);
-    setHotCues(EMPTY_HOT_CUES);
     setLoop(EMPTY_LOOP);
     setMemoryCues([]);
     setMemoryCueIndex(-1);
@@ -306,6 +374,8 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     quantize,
     memoryCues,
     memoryCueIndex,
+    gateCue,
+    preview,
     displayedBpm,
     progressRatio,
     loopRange,
@@ -317,10 +387,14 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
     setVinylMode,
     setMasterTempo,
     setQuantize,
+    setGateCue,
     setVolume,
     handlePlayPause,
     handleCue,
     handleSeek,
+    handleNeedleSearch,
+    handleHotCuePressIn,
+    handleHotCuePressOut,
     handleHotCuePress,
     handleHotCueLongPress,
     handleLoopButton,

@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
 import { DEMO_FOLDER, USER_FOLDER } from '../constants/tracks';
+import usePlaylistBank from '../hooks/usePlaylistBank';
+import { getTrackHotCues } from '../hooks/useTrackHotCues';
+import { buildDefaultPlaylists } from '../utils/defaultPlaylists';
 import BeatJumpControls from './BeatJumpControls';
 import BrowseRotary from './BrowseRotary';
 import BrowseScreen from './BrowseScreen';
@@ -13,6 +16,7 @@ import Knob from './Knob';
 import Led from './Led';
 import LoopControls from './LoopControls';
 import MemoryCueControls from './MemoryCueControls';
+import PlaylistBankBar from './PlaylistBankBar';
 import ScreenNavRow from './ScreenNavRow';
 import ScreenSideControls from './ScreenSideControls';
 import TempoControls from './TempoControls';
@@ -57,23 +61,56 @@ function importSummary(result) {
   return parts.join(' · ') || 'NO FILES CHOSEN';
 }
 
+const LIST_SCREENS = ['BROWSE', 'PLAYLIST'];
+
 export default function CdjDeck({ deck, library, label, idPrefix }) {
+  const { preview } = deck;
+  const bank = usePlaylistBank(`cdj-sim:playlist-bank:${idPrefix}`);
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
   const [vinylSpeedAdjust, setVinylSpeedAdjust] = useState(0.5);
-  const [browsePath, setBrowsePath] = useState([]); // names of the folders entered
-  const [browseSelection, setBrowseSelection] = useState(0);
+  // Where each list screen is: the names of the folders entered, and the cursor row.
+  const [nav, setNav] = useState({ BROWSE: { path: [], sel: 0 }, PLAYLIST: { path: [], sel: 0 } });
   const [browseStatus, setBrowseStatus] = useState(null);
+  const [showPreview, setShowPreview] = useState(true);
+  const overviewTouchRef = useRef(null); // { mode: 'preview' | 'needle', isMouse }
 
-  const { demoTracks, userTracks, importing, importSupported } = library;
+  const { demoTracks, userTracks, allTracks, importing, importSupported } = library;
   const tree = useMemo(
     () => buildBrowseTree({ demoTracks, userTracks, importing, importSupported }),
     [demoTracks, userTracks, importing, importSupported]
   );
-  const browseItems = browsePath.reduce(
-    (items, name) => items.find((i) => i.type === 'folder' && i.name === name)?.children ?? [],
-    tree
+  // PLAYLIST screen: playlists built from the whole library (demo + imported).
+  const playlists = useMemo(() => buildDefaultPlaylists(allTracks), [allTracks]);
+  const playlistTree = useMemo(
+    () =>
+      playlists.map((p) => ({
+        type: 'folder',
+        name: p.name,
+        playlistId: p.id,
+        children: p.tracks.map((track) => ({ type: 'track', track })),
+      })),
+    [playlists]
   );
-  const breadcrumb = ['USB1', ...browsePath];
+  const playlistsById = useMemo(() => Object.fromEntries(playlists.map((p) => [p.id, p])), [playlists]);
+
+  const isListScreen = LIST_SCREENS.includes(activeScreen);
+  const listScreen = isListScreen ? activeScreen : 'BROWSE';
+  const roots = { BROWSE: tree, PLAYLIST: playlistTree };
+  const { path: listPath, sel: listSel } = nav[listScreen];
+  const folderAt = (items, name) => items.find((i) => i.type === 'folder' && i.name === name);
+  const listItems = listPath.reduce((items, name) => folderAt(items, name)?.children ?? [], roots[listScreen]);
+  const breadcrumb = [listScreen === 'BROWSE' ? 'USB1' : 'PLAYLIST', ...listPath];
+  const openPlaylistId = nav.PLAYLIST.path.length ? folderAt(playlistTree, nav.PLAYLIST.path[0])?.playlistId : null;
+
+  const setNavFor = (screen, update) => setNav((n) => ({ ...n, [screen]: update(n[screen]) }));
+  const setListSel = (update) =>
+    setNavFor(listScreen, (n) => ({ ...n, sel: typeof update === 'function' ? update(n.sel) : update }));
+
+  // Leaving a screen ends any preview that was running on it.
+  useEffect(() => {
+    preview.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeScreen]);
 
   const handleImport = async () => {
     setBrowseStatus(null);
@@ -81,16 +118,15 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
     setBrowseStatus(importSummary(result));
     if (result.added.length) {
       // Highlight the first new track (row 0 is the import action).
-      setBrowseSelection(library.userTracks.length + 1);
+      setNavFor('BROWSE', (n) => ({ ...n, sel: library.userTracks.length + 1 }));
     }
   };
 
   const activateBrowseItem = (index) => {
-    const item = browseItems[index];
+    const item = listItems[index];
     if (!item) return;
     if (item.type === 'folder') {
-      setBrowsePath((p) => [...p, item.name]);
-      setBrowseSelection(0);
+      setNavFor(listScreen, (n) => ({ path: [...n.path, item.name], sel: 0 }));
       setBrowseStatus(null);
     } else if (item.type === 'action') {
       if (!item.disabled && !library.importing) handleImport();
@@ -101,38 +137,109 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
   };
 
   const handleDeleteTrack = async (index) => {
-    const item = browseItems[index];
+    const item = listItems[index];
     if (!item?.deletable) return;
     await library.removeTrack(item.track.id);
-    setBrowseSelection((i) => Math.max(0, Math.min(i, browseItems.length - 2)));
+    setListSel((i) => Math.max(0, Math.min(i, listItems.length - 2)));
     setBrowseStatus(`DELETED ${item.track.title}`);
   };
 
   const handleBrowseSelect = (index) => {
-    setBrowseSelection(index);
+    setListSel(index);
     activateBrowseItem(index);
   };
 
   const handleRotaryMove = (dir) => {
-    setActiveScreen('BROWSE');
-    setBrowseSelection((i) => Math.min(browseItems.length - 1, Math.max(0, i + dir)));
+    if (!isListScreen) setActiveScreen('BROWSE');
+    setListSel((i) => Math.min(Math.max(0, listItems.length - 1), Math.max(0, i + dir)));
   };
 
   const handleRotaryPress = () => {
-    if (activeScreen !== 'BROWSE') {
+    if (!isListScreen) {
       setActiveScreen('BROWSE');
       return;
     }
-    activateBrowseItem(browseSelection);
+    activateBrowseItem(listSel);
   };
 
   const handleBack = () => {
-    if (activeScreen === 'BROWSE' && browsePath.length > 0) {
-      setBrowsePath((p) => p.slice(0, -1));
-      setBrowseSelection(0);
+    if (isListScreen && listPath.length > 0) {
+      const parentPath = listPath.slice(0, -1);
+      const parent = parentPath.reduce((items, name) => folderAt(items, name)?.children ?? [], roots[listScreen]);
+      const leftIndex = parent.findIndex((i) => i.type === 'folder' && i.name === listPath[listPath.length - 1]);
+      setNavFor(listScreen, () => ({ path: parentPath, sel: Math.max(0, leftIndex) }));
     } else {
       setActiveScreen(null);
     }
+  };
+
+  // Playlist Bank: grey bank → register the highlighted (or open) playlist;
+  // white bank → open its playlist; deregister mode → clear the bank.
+  const handleBankSlot = (slot) => {
+    const playlistId = bank.slots[slot];
+    const registered = playlistId ? playlistsById[playlistId] : null;
+    if (bank.deregistering) {
+      if (playlistId) bank.deregister(slot);
+      else bank.toggleDeregister();
+      return;
+    }
+    if (registered) {
+      setNavFor('PLAYLIST', () => ({ path: [registered.name], sel: 0 }));
+      return;
+    }
+    const { path, sel } = nav.PLAYLIST;
+    const target = path.length ? folderAt(playlistTree, path[0]) : playlistTree[sel];
+    if (target?.playlistId) bank.register(slot, target.playlistId);
+  };
+
+  // Touch Preview in the track lists.
+  const startListPreview = (track, ratio, isMouse) =>
+    preview.start(track, ratio * track.duration, { latched: isMouse });
+  const moveListPreview = (track, ratio) => preview.move(ratio * track.duration);
+  const endListPreview = () => {
+    if (!preview.latched) preview.stop();
+  };
+
+  // Overview waveform on the playback screen: needle search while paused,
+  // Touch Cue (preview that point, main output untouched) while playing.
+  const startOverviewTouch = (ratio, isMouse) => {
+    const time = ratio * deck.duration;
+    if (deck.isPlaying) {
+      overviewTouchRef.current = { mode: 'preview', isMouse };
+      preview.start(deck.track, time, { latched: isMouse });
+    } else {
+      overviewTouchRef.current = { mode: 'needle', isMouse };
+      deck.handleNeedleSearch(time);
+    }
+  };
+  const moveOverviewTouch = (ratio) => {
+    const touch = overviewTouchRef.current;
+    if (!touch) return;
+    if (touch.mode === 'preview') preview.move(ratio * deck.duration);
+    else deck.handleNeedleSearch(ratio * deck.duration);
+  };
+  const endOverviewTouch = () => {
+    const touch = overviewTouchRef.current;
+    overviewTouchRef.current = null;
+    if (touch?.mode === 'preview' && !touch.isMouse) preview.stop();
+  };
+
+  const listScreenProps = {
+    breadcrumb,
+    items: listItems,
+    selectedIndex: listSel,
+    onSelectItem: handleBrowseSelect,
+    onDeleteItem: handleDeleteTrack,
+    loadedTrackId: deck.track.id,
+    status: browseStatus || deck.loadError,
+    showPreview,
+    onTogglePreview: () => setShowPreview((v) => !v),
+    preview,
+    getHotCues: getTrackHotCues,
+    onPreviewStart: startListPreview,
+    onPreviewMove: moveListPreview,
+    onPreviewEnd: endListPreview,
+    idPrefix,
   };
 
   const playerNumber = idPrefix.startsWith('deckB') ? 2 : 1;
@@ -163,15 +270,21 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
               <View style={styles.screenBezel}>
                 <View style={styles.screenGlass}>
                   {activeScreen === 'BROWSE' ? (
+                    <BrowseScreen {...listScreenProps} />
+                  ) : activeScreen === 'PLAYLIST' ? (
                     <BrowseScreen
-                      breadcrumb={breadcrumb}
-                      items={browseItems}
-                      selectedIndex={browseSelection}
-                      onSelectItem={handleBrowseSelect}
-                      onDeleteItem={handleDeleteTrack}
-                      loadedTrackId={deck.track.id}
-                      status={browseStatus || deck.loadError}
-                      idPrefix={idPrefix}
+                      {...listScreenProps}
+                      header={
+                        <PlaylistBankBar
+                          slots={bank.slots}
+                          playlistsById={playlistsById}
+                          activePlaylistId={openPlaylistId}
+                          deregistering={bank.deregistering}
+                          onPressSlot={handleBankSlot}
+                          onToggleDeregister={bank.toggleDeregister}
+                          idPrefix={idPrefix}
+                        />
+                      }
                     />
                   ) : activeScreen ? (
                     <View style={styles.placeholderScreen}>
@@ -199,9 +312,30 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                       onToggleTimeMode={toggleTimeMode}
                       progressRatio={deck.progressRatio}
                       loopRange={deck.loopRange}
+                      hotCues={deck.hotCues}
+                      gateCue={deck.gateCue}
+                      onToggleGateCue={() => deck.setGateCue((g) => !g)}
+                      previewRatio={
+                        preview.active && preview.track?.id === deck.track.id ? preview.time / deck.duration : null
+                      }
+                      onOverviewTouchStart={startOverviewTouch}
+                      onOverviewTouchMove={moveOverviewTouch}
+                      onOverviewTouchEnd={endOverviewTouch}
                       idPrefix={idPrefix}
                     />
                   )}
+                  {preview.active ? (
+                    <View style={styles.previewBadgeWrap} pointerEvents="box-none">
+                      <View style={styles.previewBadge} testID={`${idPrefix}preview-badge`}>
+                        <Text style={styles.previewBadgeText} numberOfLines={1}>
+                          ◉ PREVIEW · HOT CUE sets a cue
+                        </Text>
+                        <Pressable testID={`${idPrefix}preview-stop`} onPress={preview.stop} style={styles.previewStop}>
+                          <Text style={styles.previewStopText}>■</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : null}
                 </View>
               </View>
 
@@ -248,6 +382,8 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
               <HotCueBar
                 cues={deck.hotCues}
                 onPress={deck.handleHotCuePress}
+                onPressIn={deck.handleHotCuePressIn}
+                onPressOut={deck.handleHotCuePressOut}
                 onLongPress={deck.handleHotCueLongPress}
                 idPrefix={idPrefix}
               />
@@ -473,6 +609,44 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontWeight: '800',
     letterSpacing: 1,
+  },
+  previewBadgeWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 4,
+    alignItems: 'center',
+  },
+  previewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingLeft: 8,
+    paddingRight: 3,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: 'rgba(40, 20, 0, 0.92)',
+    borderWidth: 1,
+    borderColor: cdj.ledOrange,
+  },
+  previewBadgeText: {
+    color: cdj.ledOrange,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  previewStop: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: cdj.ledOrange,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewStopText: {
+    color: '#000000',
+    fontSize: 8,
+    fontWeight: '900',
   },
   placeholderScreen: {
     flex: 1,

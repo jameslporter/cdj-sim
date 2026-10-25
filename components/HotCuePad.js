@@ -3,7 +3,7 @@ import { cdj } from '../constants/theme';
 
 // A CDJ-3000X hot cue pad: dark rubber when empty, glowing in the cue's
 // colour once a cue is stored.
-export default function HotCuePad({ label, set, color, onPress, onLongPress, testID }) {
+export default function HotCuePad({ label, set, color, onPress, onPressIn, onPressOut, onLongPress, testID }) {
   return (
     <Pressable
       testID={testID}
@@ -17,6 +17,8 @@ export default function HotCuePad({ label, set, color, onPress, onLongPress, tes
         pressed && styles.pressed,
       ]}
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       onLongPress={onLongPress}
     >
       <View style={[styles.lightBar, set && { backgroundColor: color }]} />
