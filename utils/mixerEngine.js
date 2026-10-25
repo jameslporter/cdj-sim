@@ -1,9 +1,12 @@
 import { getAudioContext } from './audioContext';
 import { beatFxInfo, createBeatFx } from './beatFx';
 import { createSendFx, SEND_FX_TYPES } from './sendFx';
+import { DECK_IDS, deckOnChannel, INPUT_OPTIONS, MIXER_CHANNELS } from '../constants/setup';
 
 // The DJM-V10's signal path, built from Web Audio nodes (react-native-audio-api
-// on every platform). Each deck plays into its channel's input:
+// on every platform). Each deck plays into its cable (see constants/setup.js),
+// which reaches a channel when that channel's input selector is on the jack
+// the cable is plugged into. Six channels, each:
 //
 //   input → TRIM → EQ (LOW, LO-MID, HI-MID, HI) → FILTER (LPF, HPF) ─┬→ (+ SEND return) → FADER ─┬→ CROSSFADER → master bus
 //                                                                   ├→ meter (pre-fader)          └→ BEAT FX (when assigned)
@@ -122,7 +125,6 @@ function createChannel(ctx, masterBus, cueBus) {
   const fxReturn = gainNode(ctx, 0); // BEAT FX sound back into this channel
   const xfade = ctx.createGain();
   const send = gainNode(ctx, 0); // the SEND knob
-  const sendFx = createSendFx(ctx);
   const sendToChannel = gainNode(ctx, 1);
   const sendToMaster = gainNode(ctx, 0);
   const cuePost = ctx.createGain(); // CUE tap after EQ/filter
@@ -133,9 +135,7 @@ function createChannel(ctx, masterBus, cueBus) {
   chain(input, trim, eqLow, eqLoMid, eqHiMid, eqHi, lpf, hpf, preFader, fader, fxDry, xfade, masterBus);
   fader.connect(fxSend);
   fxReturn.connect(xfade);
-  chain(hpf, send, sendFx.input);
-  sendFx.output.connect(sendToChannel);
-  sendFx.output.connect(sendToMaster);
+  hpf.connect(send);
   sendToChannel.connect(preFader);
   sendToMaster.connect(masterBus);
   hpf.connect(analyser);
@@ -161,7 +161,7 @@ function createChannel(ctx, masterBus, cueBus) {
     fxReturn,
     xfade,
     send,
-    sendFx,
+    sendFx: null, // built the first time this channel's SEND is turned up
     sendToChannel,
     sendToMaster,
     cuePost,
@@ -313,18 +313,40 @@ function createEngine(ctx) {
   chain(hpMaster, masterPan, hpLevel);
   hpLevel.connect(ctx.destination);
 
-  const channels = [0, 1].map(() => createChannel(ctx, masterBus, cueBus));
+  const channels = Array.from({ length: MIXER_CHANNELS }, () => createChannel(ctx, masterBus, cueBus));
   const scratch = new Float32Array(512);
 
+  // The decks' cables, and a selector gain from each cable into each channel.
+  const deckOuts = DECK_IDS.map(() => ctx.createGain());
+  const patch = channels.map((ch) =>
+    deckOuts.map((out) => {
+      const g = gainNode(ctx, 0);
+      out.connect(g);
+      g.connect(ch.input);
+      return g;
+    })
+  );
+
+  const ensureSendFx = (node) => {
+    if (!node.sendFx) {
+      node.sendFx = createSendFx(ctx);
+      node.send.connect(node.sendFx.input);
+      node.sendFx.output.connect(node.sendToChannel);
+      node.sendFx.output.connect(node.sendToMaster);
+    }
+    return node.sendFx;
+  };
+
   const beatFx = createBeatFxUnit(ctx, {
-    CH1: { dry: channels[0].fxDry, send: channels[0].fxSend, ret: channels[0].fxReturn },
-    CH2: { dry: channels[1].fxDry, send: channels[1].fxSend, ret: channels[1].fxReturn },
+    ...Object.fromEntries(
+      channels.map((ch, i) => [`CH${i + 1}`, { dry: ch.fxDry, send: ch.fxSend, ret: ch.fxReturn }])
+    ),
     MASTER: { dry: masterDry, send: masterFxSend, ret: masterFxReturn },
   });
 
   return {
-    /** The node a deck (or its scratch voice) plays into. */
-    channelInput: (i) => channels[i]?.input ?? null,
+    /** The node deck `i` (0 = A, 1 = B), or its scratch voice, plays into: its cable. */
+    deckInput: (i) => deckOuts[i] ?? null,
 
     /** Apply the mixer state (see hooks/useMixerState.js). */
     /** Apply the BEAT FX section (see hooks/useMixerState.js) at `bpm`. */
@@ -336,6 +358,8 @@ function createEngine(ctx) {
       chState.forEach((ch, i) => {
         const node = channels[i];
         if (!node) return;
+        const plugged = deckOnChannel(i, INPUT_OPTIONS[ch.inputIndex ?? 0]);
+        DECK_IDS.forEach((id, d) => set(patch[i][d].gain, plugged === id ? 1 : 0, ctx));
         set(node.trim.gain, trimKnobToGain(ch.trim), ctx);
         set(node.eqLow.gain, eqKnobToDb(ch.eqLow), ctx);
         set(node.eqLoMid.gain, eqKnobToDb(ch.eqLoMid), ctx);
@@ -354,8 +378,9 @@ function createEngine(ctx) {
         if (sendFx) {
           // EXT1/EXT2 return nothing: there's no external effects unit plugged in.
           const builtIn = SEND_FX_TYPES.includes(sendFx.source);
-          set(node.send.gain, builtIn ? (ch.send ?? 0) ** 1.5 : 0, ctx);
-          node.sendFx.apply(sendFx);
+          const sendLevel = builtIn ? (ch.send ?? 0) ** 1.5 : 0;
+          set(node.send.gain, sendLevel, ctx);
+          if (sendLevel > 0 || node.sendFx) ensureSendFx(node).apply(sendFx);
           set(node.sendToChannel.gain, sendFx.masterMixOn ? 0 : 1, ctx);
           set(node.sendToMaster.gain, sendFx.masterMixOn ? sendFx.masterMixLevel * 1.4 : 0, ctx);
         }

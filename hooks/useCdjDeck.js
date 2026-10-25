@@ -56,8 +56,9 @@ function phaseError(target, current) {
   return d >= 0.5 ? d - 1 : d < -0.5 ? d + 1 : d;
 }
 
-// How far out of phase a synced deck may drift before it's pulled back.
-const SYNC_TOLERANCE_BEATS = 0.04;
+// How far out of phase a synced deck may drift before it's pulled back
+// (0.015 beats is about 7 ms at 128 BPM, below what you hear as a flam).
+const SYNC_TOLERANCE_BEATS = 0.015;
 
 /**
  * One CDJ.
@@ -65,7 +66,7 @@ const SYNC_TOLERANCE_BEATS = 0.04;
  *  - `syncBpm`: the master deck's BPM while BEAT SYNC follows it, else null.
  *  - `getMasterBeatPos()`: the master deck's live beat position, for phase.
  *  - `syncKey`: the sync master's current key, for KEY SYNC (else null).
- *  - `channel`: the mixer channel (0-based) the deck is plugged into.
+ *  - `channel`: which deck cable this is (0 = A, 1 = B); see constants/setup.js.
  */
 export default function useCdjDeck({
   tracks = DEMO_TRACKS,
@@ -159,7 +160,7 @@ export default function useCdjDeck({
     vinylSpeedAdjust,
     volumeRef,
     // Scratch sound goes through the same mixer channel as the deck.
-    getOutput: routedThroughMixer ? () => getMixerEngine()?.channelInput(channel) : null,
+    getOutput: routedThroughMixer ? () => getMixerEngine()?.deckInput(channel) : null,
     // LOOP IN/OUT ADJUST: the jog moves the loop point instead of the track.
     onAdjust: loopAdjust ? (revs) => adjustLoopPoint(revs) : null,
   });
@@ -249,14 +250,20 @@ export default function useCdjDeck({
   syncRef.current = { phaseAlignedTime, getPosition, beatDuration, player };
   useEffect(() => {
     if (!synced || !isPlaying || jog.scratching) return undefined;
+    let justSeeked = false;
     const id = setInterval(() => {
       const { phaseAlignedTime: align, getPosition: pos, beatDuration: beat, player: p } = syncRef.current;
       const now = pos();
       const error = align(now) - now;
-      if (Math.abs(error) <= SYNC_TOLERANCE_BEATS * beat) return;
-      // Still behind after the last correction: lead by more next time.
-      seekLeadRef.current = clamp(seekLeadRef.current + error * 0.8, 0, 0.3);
+      if (Math.abs(error) <= SYNC_TOLERANCE_BEATS * beat) {
+        justSeeked = false;
+        return;
+      }
+      // Still off straight after a correction: the seek itself landed late
+      // (or early), so lead by more (or less) next time.
+      if (justSeeked) seekLeadRef.current = clamp(seekLeadRef.current + error * 0.8, -0.05, 0.3);
       p.seekTo(now + error + seekLeadRef.current).catch(() => {});
+      justSeeked = true;
     }, 1000);
     return () => clearInterval(id);
   }, [synced, isPlaying, jog.scratching]);

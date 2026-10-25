@@ -381,8 +381,9 @@ export const LEARN_CONTENT = {
   // ── Mixer: channel strip ──────────────────────────────────────────────
   'ch-input': {
     title: 'INPUT SELECT',
-    what: 'Chooses what plays through this channel: DIGITAL or LINE from a CDJ, PHONO from a turntable, or MULTI I/O from a laptop.',
+    what: 'Chooses what plays through this channel: DIGITAL or LINE from a CDJ, PHONO from a turntable, USB A/B from a laptop, MULTI I/O, or the EXT/BUILT-IN effects returns. The label under it shows which deck you\'ll hear.',
     how: 'Set once when you plug in. If a deck is silent, a wrong input selector is one of the first things to check.',
+    tip: 'In this booth deck A is cabled to channel 3\'s DIGITAL input and deck B to channel 4\'s. Switch channel 3 to LINE and deck A goes silent.',
   },
   'ch-trim': {
     title: 'TRIM',
@@ -420,7 +421,7 @@ export const LEARN_CONTENT = {
     title: 'CUE (HEADPHONES)',
     what: 'Sends this channel to your headphones, whether or not its fader is up.',
     how: 'The key to mixing: listen to the next track in your headphones and beatmatch it before the crowd hears it.',
-    tip: 'Pull channel 2\'s fader down, press its CUE, play deck B and turn HEADPHONES MIXING toward CUE: you hear deck B, the "crowd" doesn\'t.',
+    tip: 'Pull channel 4\'s fader down, press its CUE, play deck B and turn HEADPHONES MIXING toward CUE: you hear deck B, the "crowd" doesn\'t.',
     note: 'The real V10 has two headphone outputs (CUE A and CUE B). The sim has one, which is what your device plays.',
   },
   'hp-mixing': {

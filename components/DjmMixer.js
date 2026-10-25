@@ -6,19 +6,21 @@ import MixerChannelBank from './MixerChannelBank';
 import MixerFilterSection from './MixerFilterSection';
 import MixerHeadphonesSection from './MixerHeadphonesSection';
 import { getMixerEngine } from '../utils/mixerEngine';
+import { INPUT_OPTIONS, MIXER_CHANNELS } from '../constants/setup';
 import MixerMasterSection from './MixerMasterSection';
 import MixerMicSection from './MixerMicSection';
 import MixerSendFxSection from './MixerSendFxSection';
 
-const LINKED_LABELS = ['DECK A', 'DECK B'];
 
 // Real meter readings where the mixer engine is running (stable functions,
 // so the memoized sections don't re-render).
 const engine = getMixerEngine();
-const CHANNEL_PEAKS = engine ? [0, 1].map((i) => () => engine.channelPeak(i)) : null;
+const CHANNEL_PEAKS = engine ? Array.from({ length: MIXER_CHANNELS }, (_, i) => () => engine.channelPeak(i)) : null;
 const MASTER_PEAK = engine ? () => engine.masterPeak() : null;
 
 export default function DjmMixer({ mixer, beatFxBpm }) {
+  // What each channel is playing: the deck whose cable its input selector is on.
+  const linkedLabels = mixer.channelDecks.map((id) => (id ? `DECK ${id}` : null));
   // Stable wrappers around the (always-stable) useState setters. Without
   // these, every section below would get a brand-new onChange prop on every
   // DjmMixer render — including ones triggered by unrelated state like the
@@ -55,8 +57,8 @@ export default function DjmMixer({ mixer, beatFxBpm }) {
           channelLevels={mixer.channelLevels}
           channelPeaks={CHANNEL_PEAKS}
           crossfader={mixer.crossfader}
-          inputOptions={mixer.inputOptions}
-          linkedLabels={LINKED_LABELS}
+          inputOptions={INPUT_OPTIONS}
+          linkedLabels={linkedLabels}
           onUpdateChannel={mixer.updateChannel}
           onCycleInput={mixer.cycleChannelInput}
           onToggleCue={mixer.toggleChannelCue}
@@ -81,7 +83,7 @@ export default function DjmMixer({ mixer, beatFxBpm }) {
 
 const styles = StyleSheet.create({
   column: {
-    width: 480,
+    width: 640,
     flexShrink: 0,
   },
   scroll: {
