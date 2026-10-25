@@ -301,7 +301,11 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                     <TrackDisplay
                       track={deck.track}
                       bpm={deck.displayedBpm.toFixed(2)}
-                      pitch={deck.pitch}
+                      pitch={deck.effectivePitch}
+                      tempoReset={deck.tempoReset}
+                      autoCue={deck.autoCue}
+                      beatJumpCount={deck.beatJumpCount}
+                      onSetBeatJumpCount={deck.handleSetBeatJumpCount}
                       pitchRange={deck.pitchRange}
                       masterTempo={deck.masterTempo}
                       quantize={deck.quantize}
@@ -358,6 +362,8 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                   label="TIME MODE"
                   sublabel="AUTO CUE"
                   onPress={toggleTimeMode}
+                  onLongPress={deck.toggleAutoCue}
+                  delayLongPress={700}
                   style={styles.utilButton}
                 />
                 <DeckButton
@@ -374,7 +380,10 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 memoryCueIndex={deck.memoryCueIndex}
                 onSave={deck.handleMemorySave}
                 onCall={deck.handleMemoryCall}
-                onDelete={deck.handleMemoryDelete}
+                deleteHeld={deck.deleteHeld}
+                onDeletePressIn={deck.handleDeletePressIn}
+                onDeletePressOut={deck.handleDeletePressOut}
+                onDeleteClick={deck.handleDeleteClick}
                 idPrefix={idPrefix}
               />
             </View>
@@ -386,7 +395,6 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 onPress={deck.handleHotCuePress}
                 onPressIn={deck.handleHotCuePressIn}
                 onPressOut={deck.handleHotCuePressOut}
-                onLongPress={deck.handleHotCueLongPress}
                 idPrefix={idPrefix}
               />
             </View>
@@ -404,8 +412,6 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 idPrefix={idPrefix}
               />
               <BeatJumpControls
-                beatCount={deck.beatJumpCount}
-                onCycleCount={deck.handleCycleBeatCount}
                 onBack={() => deck.handleBeatJump(-1)}
                 onForward={() => deck.handleBeatJump(1)}
                 idPrefix={idPrefix}
@@ -440,7 +446,9 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 <TransportControls
                   isPlaying={deck.isPlaying}
                   onPlayPause={deck.handlePlayPause}
-                  onCue={deck.handleCue}
+                  atCue={deck.atCue}
+                  onCuePressIn={deck.handleCuePressIn}
+                  onCuePressOut={deck.handleCuePressOut}
                   onSeek={deck.handleSeek}
                   idPrefix={idPrefix}
                 />
@@ -477,7 +485,8 @@ export default function CdjDeck({ deck, library, label, idPrefix }) {
                 onPitchChange={deck.setPitch}
                 onCycleRange={deck.handleCycleRange}
                 onToggleMasterTempo={() => deck.setMasterTempo((m) => !m)}
-                onReset={() => deck.setPitch(0)}
+                tempoReset={deck.tempoReset}
+                onReset={deck.toggleTempoReset}
                 idPrefix={idPrefix}
               />
             </View>

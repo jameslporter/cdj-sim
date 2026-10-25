@@ -2,6 +2,8 @@ import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
 import { useLearnTarget } from '../hooks/useLearningMode';
+import useBlink from '../hooks/useBlink';
+import HoldPressable from './HoldPressable';
 
 const SEEK_STEP_SECONDS = 1;
 const SEEK_INTERVAL_MS = 100;
@@ -34,8 +36,7 @@ function SearchButton({ direction, onSeek, label, testID }) {
   );
 }
 
-// Big round CUE / PLAY buttons with an LED ring, as on the CDJ-3000X.
-// CUE glows orange, PLAY glows green (solid while playing).
+// Big round PLAY button with an LED ring, as on the CDJ-3000X.
 function RoundButton({ testID, onPress, ringColor, lit, children }) {
   const learn = useLearnTarget(testID);
   return (
@@ -45,20 +46,59 @@ function RoundButton({ testID, onPress, ringColor, lit, children }) {
       onPress={onPress}
       style={({ pressed }) => [styles.roundOuter, pressed && styles.roundPressed, learn.style]}
     >
-      <View
-        style={[
-          styles.ring,
-          { borderColor: lit ? ringColor : `${ringColor}55` },
-          lit && { boxShadow: `0px 0px 12px ${ringColor}aa, inset 0px 0px 8px ${ringColor}66` },
-        ]}
-      >
-        <View style={styles.cap}>{children}</View>
-      </View>
+      <Ring ringColor={ringColor} lit={lit}>
+        {children}
+      </Ring>
     </Pressable>
   );
 }
 
-export default function TransportControls({ isPlaying, onPlayPause, onCue, onSeek, idPrefix = '' }) {
+function Ring({ ringColor, lit, children }) {
+  return (
+    <View
+      style={[
+        styles.ring,
+        { borderColor: lit ? ringColor : `${ringColor}55` },
+        lit && { boxShadow: `0px 0px 12px ${ringColor}aa, inset 0px 0px 8px ${ringColor}66` },
+      ]}
+    >
+      <View style={styles.cap}>{children}</View>
+    </View>
+  );
+}
+
+// CUE is held (Cue Point Sampler), so it uses pointer events: you can keep
+// holding it and press PLAY with another finger.
+function CueButton({ testID, onPressIn, onPressOut, lit }) {
+  return (
+    <HoldPressable
+      testID={testID}
+      onDown={onPressIn}
+      onUp={onPressOut}
+      style={({ pressed }) => [styles.roundOuter, pressed && styles.roundPressed]}
+    >
+      <Ring ringColor={cdj.ledOrange} lit={lit}>
+        <Text style={styles.cueText}>CUE</Text>
+      </Ring>
+    </HoldPressable>
+  );
+}
+
+// LEDs as on the CDJ: PLAY blinks while paused and is solid while playing.
+// CUE is solid when paused on the cue point, blinks when paused anywhere
+// else (press it to set a new cue there) and is off while playing.
+export default function TransportControls({
+  isPlaying,
+  atCue,
+  onPlayPause,
+  onCuePressIn,
+  onCuePressOut,
+  onSeek,
+  idPrefix = '',
+}) {
+  const blink = useBlink(!isPlaying);
+  const playLit = isPlaying || blink;
+  const cueLit = !isPlaying && (atCue || blink);
   return (
     <View style={styles.column}>
       <View style={styles.searchWrap}>
@@ -68,10 +108,8 @@ export default function TransportControls({ isPlaying, onPlayPause, onCue, onSee
           <SearchButton direction={1} label="▶▶" onSeek={onSeek} testID={`${idPrefix}search-forward`} />
         </View>
       </View>
-      <RoundButton testID={`${idPrefix}cue-button`} onPress={onCue} ringColor={cdj.ledOrange} lit={!isPlaying}>
-        <Text style={styles.cueText}>CUE</Text>
-      </RoundButton>
-      <RoundButton testID={`${idPrefix}play-button`} onPress={onPlayPause} ringColor={cdj.ledGreen} lit={isPlaying}>
+      <CueButton testID={`${idPrefix}cue-button`} onPressIn={onCuePressIn} onPressOut={onCuePressOut} lit={cueLit} />
+      <RoundButton testID={`${idPrefix}play-button`} onPress={onPlayPause} ringColor={cdj.ledGreen} lit={playLit}>
         <Text style={styles.playText}>{isPlaying ? '❚❚' : '▶'}</Text>
         <Text style={styles.playCaption}>PLAY/PAUSE</Text>
       </RoundButton>

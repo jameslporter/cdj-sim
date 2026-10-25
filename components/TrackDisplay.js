@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BEAT_JUMP_COUNTS } from '../constants/theme';
 import { cdj } from '../constants/theme';
 import { formatTime } from '../utils/format';
 import TouchWaveform from './TouchWaveform';
@@ -12,6 +14,10 @@ export default function TrackDisplay({
   track,
   bpm,
   pitch,
+  tempoReset,
+  autoCue,
+  beatJumpCount,
+  onSetBeatJumpCount,
   pitchRange,
   masterTempo,
   quantize,
@@ -37,6 +43,8 @@ export default function TrackDisplay({
   const [bpmWhole, bpmFrac] = String(bpm).split('.');
   const gateLearn = useLearnTarget(`${idPrefix}gate-cue`);
   const timeLearn = useLearnTarget(`${idPrefix}time-toggle`);
+  const jumpLearn = useLearnTarget(`${idPrefix}beatjump-count`);
+  const [jumpPanelOpen, setJumpPanelOpen] = useState(false);
 
   return (
     <View style={styles.display}>
@@ -54,6 +62,15 @@ export default function TrackDisplay({
           </Text>
         </LearnView>
         <Pressable
+          {...jumpLearn.props}
+          testID={`${idPrefix}beatjump-count`}
+          onPress={() => setJumpPanelOpen((o) => !o)}
+          style={[styles.touchKey, jumpPanelOpen && styles.touchKeyOnWhite, jumpLearn.style]}
+        >
+          <Text style={[styles.touchKeyText, jumpPanelOpen && styles.touchKeyTextOnWhite]}>BEAT JUMP</Text>
+          <Text style={styles.jumpValue}>{formatBeats(beatJumpCount)}</Text>
+        </Pressable>
+        <Pressable
           {...gateLearn.props}
           testID={`${idPrefix}gate-cue`}
           onPress={onToggleGateCue}
@@ -66,6 +83,26 @@ export default function TrackDisplay({
           <Text style={styles.keyValue}>{track.key}</Text>
         </LearnView>
       </View>
+
+      {jumpPanelOpen ? (
+        <View style={styles.jumpPanel} testID={`${idPrefix}beatjump-panel`}>
+          {BEAT_JUMP_COUNTS.map((count) => (
+            <Pressable
+              key={count}
+              testID={`${idPrefix}beatjump-size-${String(count).replace('.', '_')}`}
+              onPress={() => {
+                onSetBeatJumpCount(count);
+                setJumpPanelOpen(false);
+              }}
+              style={[styles.jumpOption, count === beatJumpCount && styles.jumpOptionOn]}
+            >
+              <Text style={[styles.jumpOptionText, count === beatJumpCount && styles.jumpOptionTextOn]}>
+                {formatBeats(count)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       <LearnView testID={`${idPrefix}display-zoom`} learnId={`${idPrefix}display-zoom`}>
         <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} seed={seed} />
@@ -98,7 +135,10 @@ export default function TrackDisplay({
           style={[styles.timeBlock, timeLearn.style]}
           onPress={onToggleTimeMode}
         >
-          <Text style={styles.metricLabel}>{timeMode}</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.metricLabel}>{timeMode}</Text>
+            {autoCue ? <Text style={styles.autoCueTag}>A.CUE</Text> : null}
+          </View>
           <Text style={styles.timeValue}>
             {timePrefix}
             {formatTime(timeValue)}
@@ -120,6 +160,7 @@ export default function TrackDisplay({
           <View style={styles.badgeRow}>
             <Text style={[styles.badge, masterTempo && styles.badgeOnRed]}>MT</Text>
             <Text style={[styles.badge, quantize && styles.badgeOnRed]}>Q</Text>
+            {tempoReset ? <Text style={[styles.badge, styles.badgeOnGreen]}>RESET</Text> : null}
           </View>
         </LearnView>
 
@@ -137,7 +178,72 @@ export default function TrackDisplay({
   );
 }
 
+// Beat counts as the CDJ shows them: 1/2, 1, 2 … 64.
+function formatBeats(count) {
+  return count < 1 ? `1/${Math.round(1 / count)}` : String(count);
+}
+
 const styles = StyleSheet.create({
+  jumpValue: {
+    color: cdj.screenText,
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  touchKeyOnWhite: {
+    borderColor: cdj.screenText,
+    backgroundColor: '#1d2229',
+  },
+  touchKeyTextOnWhite: {
+    color: cdj.screenText,
+  },
+  // Pops up over the waveform, like the touch screen's BEAT JUMP panel.
+  jumpPanel: {
+    position: 'absolute',
+    top: 46,
+    left: 8,
+    right: 8,
+    zIndex: 2,
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    backgroundColor: cdj.screenPanel,
+    borderWidth: 1,
+    borderColor: cdj.screenDivider,
+    borderRadius: 4,
+  },
+  jumpOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#3a4048',
+    borderRadius: 3,
+  },
+  jumpOptionOn: {
+    borderColor: cdj.screenText,
+    backgroundColor: '#1d2229',
+  },
+  jumpOptionText: {
+    color: cdj.screenTextDim,
+    fontSize: 10,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  jumpOptionTextOn: {
+    color: cdj.screenText,
+  },
+  autoCueTag: {
+    color: cdj.screenText,
+    fontSize: 7,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  badgeOnGreen: {
+    color: cdj.ledGreen,
+    borderColor: cdj.ledGreen,
+  },
   display: {
     flex: 1,
     backgroundColor: cdj.screenBg,

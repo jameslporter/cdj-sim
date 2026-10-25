@@ -12,6 +12,7 @@ export default function TempoControls({
   onPitchChange,
   onCycleRange,
   onToggleMasterTempo,
+  tempoReset,
   onReset,
   idPrefix = '',
 }) {
@@ -38,7 +39,7 @@ export default function TempoControls({
         testID={`${idPrefix}tempo-reset`}
         label="TEMPO"
         sublabel="RESET"
-        active={pitch === 0}
+        active={tempoReset}
         led="green"
         onPress={onReset}
         style={styles.smallButton}

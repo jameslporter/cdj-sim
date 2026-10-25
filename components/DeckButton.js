@@ -19,6 +19,7 @@ function DeckButton({
   sublabel,
   onPress,
   onLongPress,
+  delayLongPress,
   onPressIn,
   onPressOut,
   active,
@@ -38,6 +39,7 @@ function DeckButton({
       testID={testID}
       onPress={onPress}
       onLongPress={onLongPress}
+      delayLongPress={delayLongPress}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       disabled={disabled}
