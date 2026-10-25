@@ -130,6 +130,15 @@ prefixed `deckA-` or `deckB-`, e.g. `deckA-play-button`,
 `browse-prev`, `browse-next`, `browse-load`, `time-toggle`, `screen-back`,
 `scroll` (the deck's own vertical ScrollView).
 
+**Importing your own tracks** (web only, stored in the browser's
+IndexedDB — see `utils/trackStore.js`): BROWSE → `browse-row-1` ("My
+Tracks") → `browse-row-0` ("＋ IMPORT TRACKS…") opens a file picker.
+Drive it with Playwright's `page.waitForEvent('filechooser')` +
+`chooser.setFiles([...])` (the driver has no command for this — write a
+small script). The result shows in `browse-status`; a selected imported
+track row has a `browse-delete-<row>` button (tap twice to delete).
+Each Playwright context starts with an empty IndexedDB.
+
 The deck is styled after the black CDJ-3000X (palette: `cdj` in
 `constants/theme.js`, buttons: `components/DeckButton.js`). Like the
 hardware, the tempo fader reads − at the top and + at the bottom, so

@@ -46,10 +46,10 @@ export default function TrackDisplay({
         </View>
       </View>
 
-      <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} />
+      <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} />
 
       <View style={styles.overview}>
-        <Waveform progressRatio={progressRatio} loopRange={loopRange} />
+        <Waveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} />
       </View>
 
       <View style={styles.strip}>
