@@ -146,8 +146,9 @@ hot cue pad). A mouse can't do that, so a mouse click on a preview waveform
 plays. To test the real two-finger path, use a `hasTouch` context and CDP
 `Input.dispatchTouchEvent` (on `touchEnd`, list the point being lifted).
 
-**Importing your own tracks** (web only, stored in the browser's
-IndexedDB — see `utils/trackStore.js`): BROWSE → `browse-row-1` ("My
+**Importing your own tracks** (all platforms — track info in
+AsyncStorage, audio in IndexedDB on web / the documents folder on
+iOS+Android; see `utils/trackStore.js` and `utils/audioFiles.*.js`): BROWSE → `browse-row-1` ("My
 Tracks") → `browse-row-0` ("＋ IMPORT TRACKS…") opens a file picker.
 Drive it with Playwright's `page.waitForEvent('filechooser')` +
 `chooser.setFiles([...])` (the driver has no command for this — write a

@@ -1,63 +1,49 @@
-// Browser-side store for the user's own tracks. Everything lives in the
-// browser's IndexedDB (no backend): one object store holds track metadata,
-// a second holds the raw audio Blobs so the list can be read without
-// loading every file into memory.
+// The user's own tracks, stored on the device with no backend. It works the
+// same on web, iOS and Android:
+//  - track info (title, BPM, waveform…) lives in AsyncStorage;
+//  - the audio itself goes through ./audioFiles, the one platform-specific
+//    piece: IndexedDB on web, the app's documents folder on iOS/Android.
 //
 // Other features (e.g. Playlist Bank) should read tracks through
 // `listUserTracks()` + `subscribe()`, or the `useTrackLibrary()` hook.
 
-import { analyzeAudioFile } from './audioAnalysis';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { analyzeAudio } from './audioAnalysis';
+import { deleteAudio, getAudioUri, isAudioStorageSupported, readPickedBytes, saveAudio } from './audioFiles';
 
-const DB_NAME = 'cdj-sim';
-const DB_VERSION = 1;
-const META_STORE = 'tracks';
-const AUDIO_STORE = 'audio';
+const STORAGE_KEY = 'cdj-sim/user-tracks/v1';
 
-export const ACCEPTED_AUDIO_TYPES = ['audio/*', '.mp3', '.m4a', '.aac', '.wav', '.aiff', '.aif', '.flac', '.ogg'];
+export const isTrackStoreSupported = isAudioStorageSupported;
 
-export const isTrackStoreSupported = typeof indexedDB !== 'undefined';
-
-let dbPromise = null;
 let cache = null; // array of track metadata, oldest first
+let loading = null;
 const listeners = new Set();
-const objectUrls = new Map(); // track id -> blob: URL
 
-function openDb() {
-  if (!isTrackStoreSupported) return Promise.reject(new Error('IndexedDB is not available'));
-  if (!dbPromise) {
-    dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE, { keyPath: 'id' });
-        if (!db.objectStoreNames.contains(AUDIO_STORE)) db.createObjectStore(AUDIO_STORE);
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-    dbPromise.catch(() => {
-      dbPromise = null;
-    });
-  }
-  return dbPromise;
+// Waveform peaks (0..1) are packed as one character per value so the
+// metadata stays small (~1.4 KB per track).
+const PEAK_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function packPeaks(peaks) {
+  if (!peaks) return null;
+  return peaks.map((v) => PEAK_ALPHABET[Math.round(Math.min(1, Math.max(0, v)) * 63)]).join('');
 }
 
-function promisify(req) {
-  return new Promise((resolve, reject) => {
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+function unpackPeaks(packed) {
+  if (!packed) return undefined;
+  return Array.from(packed, (c) => PEAK_ALPHABET.indexOf(c) / 63);
 }
 
-function txDone(tx) {
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
-  });
+function toStored(track) {
+  return { ...track, peaks: packPeaks(track.peaks) };
 }
 
-function emit() {
+function fromStored(track) {
+  return { ...track, source: 'user', peaks: unpackPeaks(track.peaks) };
+}
+
+async function persist(next) {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next.map(toStored)));
+  cache = next;
   for (const fn of listeners) fn(cache);
 }
 
@@ -71,40 +57,40 @@ export function subscribe(listener) {
   return () => listeners.delete(listener);
 }
 
-/** All imported tracks (metadata only), oldest first. Cached after first read. */
-export async function listUserTracks() {
-  if (cache) return cache;
-  if (!isTrackStoreSupported) {
-    cache = [];
-    return cache;
+/** All imported tracks, oldest first. Cached after the first read. */
+export function listUserTracks() {
+  if (cache) return Promise.resolve(cache);
+  if (!loading) {
+    loading = AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => {
+        cache = raw ? JSON.parse(raw).map(fromStored) : [];
+        return cache;
+      })
+      .catch(() => {
+        cache = [];
+        return cache;
+      });
   }
-  const db = await openDb();
-  const all = await promisify(db.transaction(META_STORE).objectStore(META_STORE).getAll());
-  cache = all.sort((a, b) => a.addedAt - b.addedAt);
-  emit();
-  return cache;
+  return loading;
 }
 
 /**
- * Analyse and store audio files (a FileList or File[]). Resolves with the
- * tracks that were added; files that couldn't be decoded are reported in
- * `failed` instead of throwing.
+ * Analyse and store picked files ([{ name, uri, file? }] from
+ * pickAudioFiles). Resolves with the tracks that were added; files that
+ * couldn't be read are reported in `failed` instead of throwing.
  */
-export async function importAudioFiles(files, { onProgress } = {}) {
-  const list = Array.from(files || []);
+export async function importAudioFiles(pickedFiles, { onProgress } = {}) {
+  const list = Array.from(pickedFiles || []);
   const added = [];
   const failed = [];
   await listUserTracks();
-  const db = await openDb();
-
-  // Ask the browser not to evict the library under storage pressure.
-  navigator.storage?.persist?.().catch(() => {});
 
   for (let i = 0; i < list.length; i += 1) {
-    const file = list[i];
-    onProgress?.({ index: i, total: list.length, name: file.name });
+    const picked = list[i];
+    onProgress?.({ index: i, total: list.length, name: picked.name });
     try {
-      const info = await analyzeAudioFile(file);
+      const info = await analyzeAudio({ name: picked.name, bytes: await readPickedBytes(picked) });
+      if (!info.analyzed && !/^audio\//.test(picked.mimeType || '')) throw new Error('Not an audio file');
       const track = {
         id: newId(),
         source: 'user',
@@ -115,20 +101,16 @@ export async function importAudioFiles(files, { onProgress } = {}) {
         duration: info.duration,
         firstBeat: info.firstBeat,
         peaks: info.peaks,
-        fileName: file.name,
-        mimeType: file.type || 'audio/mpeg',
-        size: file.size,
+        fileName: picked.name,
+        mimeType: picked.mimeType || 'audio/mpeg',
+        size: picked.size ?? null,
         addedAt: Date.now() + i,
       };
-      const tx = db.transaction([META_STORE, AUDIO_STORE], 'readwrite');
-      tx.objectStore(META_STORE).put(track);
-      tx.objectStore(AUDIO_STORE).put(file, track.id);
-      await txDone(tx);
+      await saveAudio(track, picked);
+      await persist([...cache, track]);
       added.push(track);
-      cache = [...cache, track];
-      emit();
     } catch (err) {
-      failed.push({ name: file.name, error: String(err?.message || err) });
+      failed.push({ name: picked.name, error: String(err?.message || err) });
     }
   }
   return { added, failed };
@@ -140,45 +122,21 @@ export async function updateUserTrack(id, changes) {
   const current = cache.find((t) => t.id === id);
   if (!current) return null;
   const next = { ...current, ...changes, id, source: 'user' };
-  const db = await openDb();
-  const tx = db.transaction(META_STORE, 'readwrite');
-  tx.objectStore(META_STORE).put(next);
-  await txDone(tx);
-  cache = cache.map((t) => (t.id === id ? next : t));
-  emit();
+  await persist(cache.map((t) => (t.id === id ? next : t)));
   return next;
 }
 
 export async function deleteUserTrack(id) {
   await listUserTracks();
-  const db = await openDb();
-  const tx = db.transaction([META_STORE, AUDIO_STORE], 'readwrite');
-  tx.objectStore(META_STORE).delete(id);
-  tx.objectStore(AUDIO_STORE).delete(id);
-  await txDone(tx);
-  // Don't revoke the blob: URL — a deck may still be playing this track.
-  // It's released when the page closes.
-  objectUrls.delete(id);
-  cache = cache.filter((t) => t.id !== id);
-  emit();
+  const track = cache.find((t) => t.id === id);
+  if (!track) return;
+  await deleteAudio(track);
+  await persist(cache.filter((t) => t.id !== id));
 }
 
-/** A playable `blob:` URL for an imported track (created once, then reused). */
-export async function getUserTrackUrl(id) {
-  if (objectUrls.has(id)) return objectUrls.get(id);
-  const db = await openDb();
-  const blob = await promisify(db.transaction(AUDIO_STORE).objectStore(AUDIO_STORE).get(id));
-  if (!blob) throw new Error('Audio for this track is missing');
-  const url = URL.createObjectURL(blob);
-  objectUrls.set(id, url);
-  return url;
-}
-
-/** How much browser storage the library uses, if the browser can tell us. */
-export async function getStorageEstimate() {
-  try {
-    return (await navigator.storage?.estimate?.()) ?? null;
-  } catch {
-    return null;
-  }
+/** A URI the audio player can open for an imported track. */
+export async function getUserTrackUri(id) {
+  const track = (await listUserTracks()).find((t) => t.id === id);
+  if (!track) throw new Error('Track not found');
+  return getAudioUri(track);
 }
