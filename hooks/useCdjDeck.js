@@ -49,7 +49,7 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS } = {}) {
   const status = useAudioPlayerStatus(player);
 
   const elapsed = status.currentTime ?? 0;
-  const duration = (status.isLoaded && status.duration) || track.duration;
+  const duration = (status.isLoaded && status.duration) || track.duration || 1;
   const audioRate = 1 + pitch / 100;
   const rate = audioRate * (reverse ? -1 : 1);
   const displayedBpm = track.bpm * audioRate;

@@ -1,27 +1,17 @@
-import { ACCEPTED_AUDIO_TYPES } from './trackStore';
+import * as DocumentPicker from 'expo-document-picker';
 
 /**
- * Open the browser's file picker for audio files. Resolves with the chosen
- * File objects (empty if the user cancels or the platform has no DOM).
+ * Open the system file picker (browser dialog, iOS Files, Android picker)
+ * for audio files. Resolves with [{ name, uri, mimeType, size, file? }] —
+ * `file` is the browser File on web. Empty if the user cancels.
  */
-export function pickAudioFiles() {
-  if (typeof document === 'undefined') return Promise.resolve([]);
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.multiple = true;
-    input.accept = ACCEPTED_AUDIO_TYPES.join(',');
-    input.style.display = 'none';
-    let settled = false;
-    const finish = (files) => {
-      if (settled) return;
-      settled = true;
-      input.remove();
-      resolve(files);
-    };
-    input.addEventListener('change', () => finish(Array.from(input.files || [])));
-    input.addEventListener('cancel', () => finish([]));
-    document.body.appendChild(input);
-    input.click();
+export async function pickAudioFiles() {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ['audio/*'],
+    multiple: true,
+    copyToCacheDirectory: true,
+    base64: false,
   });
+  if (result.canceled) return [];
+  return result.assets;
 }

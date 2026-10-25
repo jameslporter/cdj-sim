@@ -26,7 +26,7 @@ import TransportControls from './TransportControls';
 import UsbRow from './UsbRow';
 
 function importLabel(library) {
-  if (!library.importSupported) return 'IMPORT TRACKS (WEB ONLY)';
+  if (!library.importSupported) return 'IMPORT UNAVAILABLE';
   if (library.importing) {
     const { index, total } = library.importing;
     return `ANALYZING ${index + 1}/${total}…`;

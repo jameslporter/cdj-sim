@@ -1,6 +1,6 @@
 // What rekordbox would normally do before a track reaches a CDJ: read its
 // tags, measure its length, detect its BPM / first beat, and draw a waveform.
-// Runs entirely in the browser with the Web Audio API.
+// Runs on-device on every platform (web, iOS, Android).
 
 const ANALYSIS_RATE = 22050; // decode at a low rate: plenty for beats, half the memory
 const HOP = 64; // ≈ 2.9 ms per onset-envelope frame
@@ -10,17 +10,41 @@ const MAX_BPM = 180;
 
 // ---------------------------------------------------------------- tags --
 
-function decodeText(bytes, encoding) {
-  try {
-    let text;
-    if (encoding === 0) text = new TextDecoder('latin1').decode(bytes);
-    else if (encoding === 1) text = new TextDecoder('utf-16').decode(bytes);
-    else if (encoding === 2) text = new TextDecoder('utf-16be').decode(bytes);
-    else text = new TextDecoder('utf-8').decode(bytes);
-    return text.replace(/\0+$/g, '').split('\0')[0].trim();
-  } catch {
-    return '';
+// Hand-rolled text decoding: TextDecoder isn't available in every
+// React Native JS engine.
+function decodeUtf8(bytes) {
+  let out = '';
+  for (let i = 0; i < bytes.length; ) {
+    const c = bytes[i];
+    let cp = c;
+    let n = 1;
+    if (c >= 0xf0) [cp, n] = [c & 0x07, 4];
+    else if (c >= 0xe0) [cp, n] = [c & 0x0f, 3];
+    else if (c >= 0xc0) [cp, n] = [c & 0x1f, 2];
+    for (let k = 1; k < n; k += 1) cp = (cp << 6) | ((bytes[i + k] ?? 0) & 0x3f);
+    out += String.fromCodePoint(cp);
+    i += n;
   }
+  return out;
+}
+
+function decodeUtf16(bytes, bigEndian) {
+  let i = 0;
+  let be = bigEndian;
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) [be, i] = [true, 2];
+  else if (bytes[0] === 0xff && bytes[1] === 0xfe) [be, i] = [false, 2];
+  const units = [];
+  for (; i + 1 < bytes.length; i += 2) units.push(be ? (bytes[i] << 8) | bytes[i + 1] : bytes[i] | (bytes[i + 1] << 8));
+  return String.fromCharCode(...units);
+}
+
+function decodeText(bytes, encoding) {
+  let text;
+  if (encoding === 0) text = String.fromCharCode(...bytes);
+  else if (encoding === 1) text = decodeUtf16(bytes, false);
+  else if (encoding === 2) text = decodeUtf16(bytes, true);
+  else text = decodeUtf8(bytes);
+  return text.replace(/\0+$/g, '').split('\0')[0].trim();
 }
 
 /** Minimal ID3v2.3 / v2.4 reader for the few frames a CDJ shows. */
@@ -186,26 +210,38 @@ function computePeaks(mono, count = PEAK_COUNT) {
 
 const yieldToUi = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-async function decode(arrayBuffer) {
-  const Offline = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
-  if (!Offline) throw new Error('This browser cannot decode audio');
-  const ctx = new Offline(1, 1, ANALYSIS_RATE);
-  return new Promise((resolve, reject) => {
-    // Old Safari only supports the callback form.
-    const p = ctx.decodeAudioData(arrayBuffer, resolve, reject);
-    if (p && typeof p.then === 'function') p.then(resolve, reject);
-  });
+// react-native-audio-api gives the same decodeAudioData on web, iOS and
+// Android. It's a native module, so it's missing in Expo Go: there we fall
+// back to tags only (no BPM detection or real waveform).
+let decoder;
+function getDecoder() {
+  if (decoder === undefined) {
+    try {
+      decoder = require('react-native-audio-api').decodeAudioData;
+    } catch {
+      decoder = null;
+    }
+  }
+  return decoder;
 }
 
-/** Everything the deck needs to know about a user's file. */
-export async function analyzeAudioFile(file) {
-  const bytes = await file.arrayBuffer();
+async function decode(arrayBuffer) {
+  const decodeAudioData = getDecoder();
+  if (!decodeAudioData) return null;
+  return decodeAudioData(arrayBuffer, ANALYSIS_RATE);
+}
+
+/**
+ * Everything the deck needs to know about a user's file.
+ * `bytes` is the file's ArrayBuffer, `name` its file name.
+ */
+export async function analyzeAudio({ name, bytes }) {
   const tags = readId3Tags(bytes);
-  const fromName = parseFileName(file.name);
-  const buffer = await decode(bytes.slice(0)); // decodeAudioData detaches its input
+  const fromName = parseFileName(name);
+  const buffer = await decode(bytes.slice(0)); // decoding may detach its input
   await yieldToUi();
-  const mono = toMono(buffer);
-  const grid = detectBeatGrid(mono, buffer.sampleRate);
+  const mono = buffer ? toMono(buffer) : null;
+  const grid = mono ? detectBeatGrid(mono, buffer.sampleRate) : { bpm: 120, firstBeat: 0 };
   await yieldToUi();
   const taggedBpm = parseFloat(tags.bpm);
   const bpm = taggedBpm >= MIN_BPM / 2 && taggedBpm <= MAX_BPM * 1.5 ? taggedBpm : grid.bpm;
@@ -215,7 +251,8 @@ export async function analyzeAudioFile(file) {
     key: tags.key || '—',
     bpm,
     firstBeat: bpm === grid.bpm ? grid.firstBeat : 0,
-    duration: buffer.duration,
-    peaks: computePeaks(mono),
+    duration: buffer ? buffer.duration : 0, // 0 = unknown until the deck loads it
+    peaks: mono ? computePeaks(mono) : null,
+    analyzed: Boolean(buffer),
   };
 }
