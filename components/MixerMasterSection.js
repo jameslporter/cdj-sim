@@ -6,13 +6,13 @@ import Knob from './Knob';
 import VuMeter from './VuMeter';
 import LearnView from './LearnView';
 
-function MixerMasterSection({ master, masterLevel, onChange }) {
+function MixerMasterSection({ master, masterLevel, getMasterPeak, onChange }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>MASTER</Text>
       <LearnView learnId="mixer-master-meter" style={styles.meterRow}>
-        <VuMeter level={masterLevel} height={140} width={12} />
-        <VuMeter level={masterLevel} height={140} width={12} />
+        <VuMeter level={masterLevel} getPeak={getMasterPeak} height={140} width={12} />
+        <VuMeter level={masterLevel} getPeak={getMasterPeak} height={140} width={12} />
       </LearnView>
       <Knob testID="mixer-master-level" label="LEVEL" value={master.level} onChange={(v) => onChange({ level: v })} />
       <Knob testID="mixer-master-booth" label="BOOTH" value={master.booth} onChange={(v) => onChange({ booth: v })} />

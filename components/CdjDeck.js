@@ -25,6 +25,12 @@ import TrackSearchControls from './TrackSearchControls';
 import TransportControls from './TransportControls';
 import UsbRow from './UsbRow';
 import LearnView from './LearnView';
+import SearchKeyboard from './SearchKeyboard';
+import UtilityScreen from './UtilityScreen';
+import { UTILITY_SETTINGS } from '../constants/utilitySettings';
+import TrackFilterScreen from './TrackFilterScreen';
+import useTagList, { tagList } from '../hooks/useTagList';
+import { describeFilter, EMPTY_FILTER, passesFilter } from '../utils/trackFilter';
 
 function importLabel(library) {
   if (!library.importSupported) return 'IMPORT UNAVAILABLE';
@@ -62,14 +68,26 @@ function importSummary(result) {
   return parts.join(' · ') || 'NO FILES CHOSEN';
 }
 
-const LIST_SCREENS = ['BROWSE', 'PLAYLIST'];
+const LIST_SCREENS = ['BROWSE', 'PLAYLIST', 'TAG LIST', 'SEARCH'];
+const LIST_TITLES = { BROWSE: 'USB1', PLAYLIST: 'PLAYLIST', 'TAG LIST': 'TAG LIST', SEARCH: 'SEARCH' };
 
-export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
+export default function CdjDeck({ deck, sync, library, label, idPrefix, onAir: channelOnAir = false, deckSettings }) {
+  const { settings, cycleSetting } = deckSettings;
+  const onAir = channelOnAir && settings.onAirDisplay === 'ON';
+  const [settingSel, setSettingSel] = useState(0);
   const { preview } = deck;
   const bank = usePlaylistBank(`cdj-sim:playlist-bank:${idPrefix}`);
   const [activeScreen, setActiveScreen] = useState(null); // null = PLAY/waveform view
   // Where each list screen is: the names of the folders entered, and the cursor row.
-  const [nav, setNav] = useState({ BROWSE: { path: [], sel: 0 }, PLAYLIST: { path: [], sel: 0 } });
+  const [nav, setNav] = useState({
+    BROWSE: { path: [], sel: 0 },
+    PLAYLIST: { path: [], sel: 0 },
+    'TAG LIST': { path: [], sel: 0 },
+    SEARCH: { path: [], sel: 0 },
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [trackFilter, setTrackFilter] = useState(EMPTY_FILTER);
+  const taggedIds = useTagList();
   const [browseStatus, setBrowseStatus] = useState(null);
   const [showPreview, setShowPreview] = useState(true);
   const overviewTouchRef = useRef(null); // { mode: 'preview' | 'needle', isMouse }
@@ -95,11 +113,29 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
 
   const isListScreen = LIST_SCREENS.includes(activeScreen);
   const listScreen = isListScreen ? activeScreen : 'BROWSE';
-  const roots = { BROWSE: tree, PLAYLIST: playlistTree };
+  // TAG LIST in the order tracks were tagged; SEARCH matches title or artist.
+  const tagTree = useMemo(() => {
+    const byId = Object.fromEntries(allTracks.map((t) => [t.id, t]));
+    return taggedIds.filter((id) => byId[id]).map((id) => ({ type: 'track', track: byId[id] }));
+  }, [allTracks, taggedIds]);
+  const searchTree = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return allTracks
+      .filter((t) => !q || `${t.title} ${t.artist}`.toLowerCase().includes(q))
+      .map((track) => ({ type: 'track', track }));
+  }, [allTracks, searchQuery]);
+  const roots = { BROWSE: tree, PLAYLIST: playlistTree, 'TAG LIST': tagTree, SEARCH: searchTree };
   const { path: listPath, sel: listSel } = nav[listScreen];
   const folderAt = (items, name) => items.find((i) => i.type === 'folder' && i.name === name);
-  const listItems = listPath.reduce((items, name) => folderAt(items, name)?.children ?? [], roots[listScreen]);
-  const breadcrumb = [listScreen === 'BROWSE' ? 'USB1' : 'PLAYLIST', ...listPath];
+  // TRACK FILTER compares with the sync master's track, or this deck's own.
+  const filterRef = sync.filterRef ?? { title: deck.track.title, bpm: deck.displayedBpm, key: deck.displayKey };
+  const listItems = listPath
+    .reduce((items, name) => folderAt(items, name)?.children ?? [], roots[listScreen])
+    .filter((item) => item.type !== 'track' || passesFilter(item.track, trackFilter, filterRef));
+  const breadcrumb = [
+    listScreen === 'SEARCH' ? `SEARCH ${searchQuery ? `"${searchQuery}"` : ''}` : LIST_TITLES[listScreen],
+    ...listPath,
+  ];
   const openPlaylistId = nav.PLAYLIST.path.length ? folderAt(playlistTree, nav.PLAYLIST.path[0])?.playlistId : null;
 
   const setNavFor = (screen, update) => setNav((n) => ({ ...n, [screen]: update(n[screen]) }));
@@ -130,6 +166,9 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
       setBrowseStatus(null);
     } else if (item.type === 'action') {
       if (!item.disabled && !library.importing) handleImport();
+    } else if (settings.loadLock === 'LOCK' && deck.isPlaying) {
+      // LOAD LOCK: no loading onto a playing deck.
+      setBrowseStatus('LOAD LOCKED — PAUSE THE DECK OR SET LOAD LOCK TO UNLOCK IN UTILITY');
     } else {
       deck.handleLoadTrack(item.track);
       setActiveScreen(null);
@@ -150,16 +189,71 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
   };
 
   const handleRotaryMove = (dir) => {
+    if (isSettingsScreen) {
+      setSettingSel((i) => Math.max(0, Math.min(settingRows.length - 1, i + dir)));
+      return;
+    }
     if (!isListScreen) setActiveScreen('BROWSE');
     setListSel((i) => Math.min(Math.max(0, listItems.length - 1), Math.max(0, i + dir)));
   };
 
   const handleRotaryPress = () => {
+    if (isSettingsScreen) {
+      settingRows[settingSel]?.onPress();
+      return;
+    }
     if (!isListScreen) {
       setActiveScreen('BROWSE');
       return;
     }
     activateBrowseItem(listSel);
+  };
+
+  // TAG TRACK/REMOVE: tags the highlighted track in a list (or the loaded
+  // track on the playback screen). On the TAG LIST it removes the track.
+  const handleTagTrack = () => {
+    const item = isListScreen ? listItems[listSel] : { type: 'track', track: deck.track };
+    if (item?.type !== 'track') return;
+    if (activeScreen === 'TAG LIST') {
+      tagList.remove(item.track.id);
+      setListSel((i) => Math.max(0, Math.min(i, listItems.length - 2)));
+      return;
+    }
+    const tagged = tagList.toggle(item.track.id);
+    setBrowseStatus(`${tagged ? 'TAGGED' : 'REMOVED'} ${item.track.title}`);
+  };
+
+  const handleSearchQuery = (q) => {
+    setSearchQuery(q);
+    setNavFor('SEARCH', () => ({ path: [], sel: 0 }));
+  };
+
+  // UTILITY (hold MENU) lists every setting; SHORTCUT the common ones plus
+  // QUANTIZE.
+  const settingRow = (def) => ({
+    key: def.key,
+    label: def.label,
+    value: settings[def.key],
+    help: def.help,
+    onPress: () => cycleSetting(def.key),
+  });
+  const settingRows =
+    activeScreen === 'SHORTCUT'
+      ? [
+          {
+            key: 'quantize',
+            label: 'QUANTIZE',
+            value: deck.quantize ? 'ON' : 'OFF',
+            help: 'Snaps hot cues, loops and beat jumps to the beat grid.',
+            onPress: () => deck.setQuantize((q) => !q),
+          },
+          ...UTILITY_SETTINGS.filter((d) => d.shortcut).map(settingRow),
+        ]
+      : UTILITY_SETTINGS.map(settingRow);
+  const isSettingsScreen = activeScreen === 'UTILITY' || activeScreen === 'SHORTCUT';
+  const openSettings = (screen) => {
+    setSettingSel(0);
+    setActiveScreen((s) => (s === screen ? null : screen));
   };
 
   const handleBack = () => {
@@ -231,6 +325,8 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
     onSelectItem: handleBrowseSelect,
     onDeleteItem: handleDeleteTrack,
     loadedTrackId: deck.track.id,
+    taggedIds,
+    filterLabel: trackFilter.on ? describeFilter(trackFilter, filterRef) : null,
     status: browseStatus || deck.loadError,
     showPreview,
     onTogglePreview: () => setShowPreview((v) => !v),
@@ -242,7 +338,11 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
     idPrefix,
   };
 
-  const playerNumber = idPrefix.startsWith('deckB') ? 2 : 1;
+  const playerNumber = settings.playerNumber === 'AUTO' ? (idPrefix.startsWith('deckB') ? 2 : 1) : Number(settings.playerNumber);
+  // Track end warning: the last 30 seconds flash (UTILITY default), unless looping.
+  const endWarning =
+    settings.jogRingIndicator === 'ON' &&
+    deck.isPlaying && !deck.loop.active && deck.duration > 0 && deck.duration - deck.elapsed <= 30 && !deck.reverse;
   const toggleTimeMode = () => deck.setTimeMode((m) => (m === 'ELAPSED' ? 'REMAIN' : 'ELAPSED'));
 
   return (
@@ -264,6 +364,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                 activeScreen={activeScreen}
                 onSelect={setActiveScreen}
                 onMenu={() => setActiveScreen(null)}
+                onUtility={() => openSettings('UTILITY')}
                 idPrefix={idPrefix}
               />
 
@@ -285,6 +386,30 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                           idPrefix={idPrefix}
                         />
                       }
+                    />
+                  ) : activeScreen === 'TAG LIST' ? (
+                    <BrowseScreen {...listScreenProps} />
+                  ) : activeScreen === 'SEARCH' ? (
+                    <BrowseScreen
+                      {...listScreenProps}
+                      showPreview={false}
+                      onTogglePreview={null}
+                      footer={<SearchKeyboard query={searchQuery} onChange={handleSearchQuery} idPrefix={idPrefix} />}
+                    />
+                  ) : isSettingsScreen ? (
+                    <UtilityScreen
+                      title={activeScreen}
+                      rows={settingRows}
+                      selectedIndex={Math.min(settingSel, settingRows.length - 1)}
+                      onSelect={setSettingSel}
+                      idPrefix={idPrefix}
+                    />
+                  ) : activeScreen === 'TRACK FILTER' ? (
+                    <TrackFilterScreen
+                      filter={trackFilter}
+                      onChange={(patch) => setTrackFilter((f) => ({ ...f, ...patch }))}
+                      reference={filterRef}
+                      idPrefix={idPrefix}
                     />
                   ) : activeScreen ? (
                     <View style={styles.placeholderScreen}>
@@ -309,6 +434,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                       getPosition={deck.getPosition}
                       getMasterBeatPos={sync.getMasterBeatPos}
                       memoryCues={deck.memoryCues}
+                      slipRatio={deck.slipping ? (deck.slipPosition() ?? 0) / deck.duration : null}
                       tempoReset={deck.tempoReset}
                       autoCue={deck.autoCue}
                       beatJumpCount={deck.beatJumpCount}
@@ -317,6 +443,15 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                       masterTempo={deck.masterTempo}
                       quantize={deck.quantize}
                       playerNumber={playerNumber}
+                      onAir={onAir}
+                      endWarning={endWarning}
+                      displayKey={deck.displayKey}
+                      keyShift={deck.keyShift}
+                      keySync={deck.keySync}
+                      masterKey={sync.masterKey}
+                      onToggleKeySync={deck.toggleKeySync}
+                      onShiftKey={deck.shiftKey}
+                      onResetKey={deck.resetKey}
                       elapsed={deck.elapsed}
                       duration={deck.duration}
                       timeMode={deck.timeMode}
@@ -352,7 +487,16 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                 </View>
               </View>
 
-              <ScreenSideControls onBack={handleBack} idPrefix={idPrefix}>
+              <ScreenSideControls
+                onBack={handleBack}
+                onTagTrack={handleTagTrack}
+                tagListOpen={activeScreen === 'TAG LIST'}
+                trackFilterOn={trackFilter.on}
+                onTrackFilter={() => setTrackFilter((f) => ({ ...f, on: !f.on }))}
+                onTrackFilterEdit={() => setActiveScreen('TRACK FILTER')}
+                onShortcut={() => openSettings('SHORTCUT')}
+                idPrefix={idPrefix}
+              >
                 <BrowseRotary
                   onPrev={() => handleRotaryMove(-1)}
                   onNext={() => handleRotaryMove(1)}
@@ -402,6 +546,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                 onPress={deck.handleHotCuePress}
                 onPressIn={deck.handleHotCuePressIn}
                 onPressOut={deck.handleHotCuePressOut}
+                colorful={settings.hotCueColor === 'ON'}
                 idPrefix={idPrefix}
               />
             </View>
@@ -416,6 +561,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                 onFourBeat={() => deck.handleLoopButton(4)}
                 onEightBeat={() => deck.handleLoopButton(8)}
                 onReloopExit={deck.handleReloopExit}
+                adjust={deck.loopAdjust}
                 idPrefix={idPrefix}
               />
               <BeatJumpControls
@@ -432,9 +578,12 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                   slip={deck.slip}
                   vinylMode={deck.vinylMode}
                   setReverse={deck.setReverse}
-                  setSlip={deck.setSlip}
-                  onToggleSlip={() => deck.setSlip((s) => !s)}
+                  onToggleSlip={deck.toggleSlip}
+                  slipping={deck.slipping}
+                  slipReverseHeld={deck.slipReverseHeld}
+                  onSlipReverse={deck.handleSlipReverse}
                   onToggleVinylMode={() => deck.setVinylMode((v) => !v)}
+                  slipFlashing={settings.slipFlashing === 'ON'}
                   idPrefix={idPrefix}
                 />
                 <Knob
@@ -468,6 +617,13 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                   vinylMode={deck.vinylMode}
                   jogAdjust={deck.jogAdjust}
                   jog={deck.jog}
+                  cuePoint={deck.cuePoint}
+                  getSlipPosition={deck.slipping ? deck.slipPosition : null}
+                  onAir={onAir}
+                  endWarning={endWarning}
+                  track={deck.track}
+                  synced={sync.syncOn}
+                  isMaster={sync.isMaster}
                   idPrefix={idPrefix}
                 />
                 <View style={styles.underJog}>

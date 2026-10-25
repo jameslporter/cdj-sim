@@ -3,6 +3,8 @@ import { cdj } from '../constants/theme';
 import DeckButton from './DeckButton';
 import Led from './Led';
 import { useLearnTarget } from '../hooks/useLearningMode';
+import useBlink from '../hooks/useBlink';
+import HoldPressable from './HoldPressable';
 
 const DIRECTION_OPTIONS = [
   { value: 'FWD', label: 'FWD' },
@@ -10,9 +12,10 @@ const DIRECTION_OPTIONS = [
   { value: 'SLIP_REV', label: 'SLIP REV' },
 ];
 
-// DIRECTION lever: a three-position switch. The knob sits in the slot at
-// the selected position.
-function DirectionLever({ value, onChange, testID }) {
+// DIRECTION lever: FWD and REV latch; SLIP REV is spring-loaded, so it
+// reverses only while held (pointer events, so it can be held while the other
+// hand works) and the lever springs back when you let go.
+function DirectionLever({ value, onChange, onSlipReverse, testID }) {
   const learn = useLearnTarget(testID);
   return (
     <View {...learn.props} style={[styles.leverWrap, learn.style]}>
@@ -21,6 +24,25 @@ function DirectionLever({ value, onChange, testID }) {
         <View style={styles.leverSlot} />
         {DIRECTION_OPTIONS.map((opt) => {
           const active = opt.value === value;
+          const content = (
+            <>
+              <View style={[styles.leverKnob, active && styles.leverKnobActive]} />
+              <Text style={[styles.leverLabel, active && styles.leverLabelActive]}>{opt.label}</Text>
+            </>
+          );
+          if (opt.value === 'SLIP_REV') {
+            return (
+              <HoldPressable
+                key={opt.value}
+                testID={`${testID}-${opt.value}`}
+                onDown={() => onSlipReverse(true)}
+                onUp={() => onSlipReverse(false)}
+                style={styles.leverStop}
+              >
+                {content}
+              </HoldPressable>
+            );
+          }
           return (
             <Pressable
               key={opt.value}
@@ -28,8 +50,7 @@ function DirectionLever({ value, onChange, testID }) {
               onPress={() => onChange(opt.value)}
               style={styles.leverStop}
             >
-              <View style={[styles.leverKnob, active && styles.leverKnobActive]} />
-              <Text style={[styles.leverLabel, active && styles.leverLabelActive]}>{opt.label}</Text>
+              {content}
             </Pressable>
           );
         })}
@@ -41,25 +62,20 @@ function DirectionLever({ value, onChange, testID }) {
 export default function DeckModeControls({
   reverse,
   slip,
+  slipping,
+  slipReverseHeld,
   vinylMode,
   setReverse,
-  setSlip,
   onToggleSlip,
+  onSlipReverse,
   onToggleVinylMode,
+  slipFlashing = true,
   idPrefix = '',
 }) {
-  const direction = !reverse ? 'FWD' : slip ? 'SLIP_REV' : 'REV';
-
-  const handleDirectionChange = (value) => {
-    if (value === 'FWD') {
-      setReverse(false);
-    } else if (value === 'REV') {
-      setReverse(true);
-    } else {
-      setReverse(true);
-      setSlip(true);
-    }
-  };
+  const direction = slipReverseHeld ? 'SLIP_REV' : reverse ? 'REV' : 'FWD';
+  // SLIP's light flashes while a slip action is running (the deck's
+  // SLIP FLASHING setting).
+  const flash = useBlink(slipping && slipFlashing, 250);
 
   return (
     <View style={styles.wrap}>
@@ -75,12 +91,17 @@ export default function DeckModeControls({
       <DeckButton
         testID={`${idPrefix}mode-slip`}
         label="SLIP"
-        active={slip}
+        active={slip && flash}
         led="blue"
         onPress={onToggleSlip}
         style={styles.chip}
       />
-      <DirectionLever testID={`${idPrefix}direction`} value={direction} onChange={handleDirectionChange} />
+      <DirectionLever
+        testID={`${idPrefix}direction`}
+        value={direction}
+        onChange={(v) => setReverse(v === 'REV')}
+        onSlipReverse={onSlipReverse}
+      />
     </View>
   );
 }

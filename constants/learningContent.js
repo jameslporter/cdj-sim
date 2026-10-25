@@ -32,7 +32,7 @@ export const LEARN_CONTENT = {
     title: 'TAG LIST',
     what: 'A temporary playlist of tracks you marked with TAG TRACK, shared by all linked players.',
     how: 'While playing, DJs tag tracks they might want next so they don\'t have to dig through the whole library again.',
-    note: 'Not simulated yet.',
+    tip: 'Highlight a track in BROWSE, press TAG TRACK, then open TAG LIST. Both decks share the same list. Press TAG TRACK here to remove the highlighted track.',
   },
   'screen-playlist': {
     title: 'PLAYLIST',
@@ -43,11 +43,17 @@ export const LEARN_CONTENT = {
     title: 'SEARCH',
     what: 'Opens an on-screen keyboard to find a track by typing part of its title or artist.',
     how: 'Handy when you know exactly which track you want and it\'s buried in a big library.',
-    note: 'Not simulated yet.',
+    tip: 'Type a few letters: the list narrows as you type. Turn the rotary and push it to load a result.',
+  },
+  'search-key': {
+    title: 'SEARCH KEYBOARD',
+    what: 'Type part of a title or artist. The list shows matching tracks as you type. ⌫ deletes a letter and CLEAR starts again.',
+    how: 'Two or three letters are usually enough to find a track.',
   },
   'screen-menu': {
     title: 'MENU / UTILITY',
     what: 'Returns the screen to the main playback view. Holding it opens UTILITY, the player\'s settings menu.',
+    tip: 'Hold MENU to open UTILITY.',
     how: 'DJs tap it to get back to the waveform after browsing. UTILITY is where you change settings like the jog display or quantize beat value.',
   },
   'screen-back': {
@@ -58,20 +64,32 @@ export const LEARN_CONTENT = {
   'tag-track': {
     title: 'TAG TRACK / REMOVE',
     what: 'Adds the highlighted track to the Tag List, or removes it if it\'s already there.',
-    how: 'Tag tracks as ideas while you browse so you can come back to them in the next mix.',
-    note: 'The Tag List itself isn\'t simulated yet.',
+    how: 'Tag tracks as ideas while you browse so you can come back to them in the next mix. Tagged tracks show a pink dot in the lists.',
+    tip: 'On the playback screen it tags the loaded track.',
   },
   'track-filter': {
     title: 'TRACK FILTER / EDIT',
     what: 'Filters the browser to show only tracks that match conditions you set, such as a BPM range near the current track or a matching key. Holding it edits the conditions.',
     how: 'DJs use it to narrow a big library to tracks that will mix well with what\'s playing now.',
-    note: 'Not simulated yet.',
+    tip: 'Hold it to set a BPM range and key matching, then press it to switch the filter on. The list title shows FILTER while it\'s on.',
+    note: 'The real filter can also use rating, colour and My Tag from rekordbox. The sim\'s tracks don\'t have those, so it filters by BPM and key.',
+  },
+  filter: {
+    title: 'TRACK FILTER SETTINGS',
+    what: 'BPM keeps tracks within a percentage of the sync master\'s BPM (or this deck\'s, without a master). KEY keeps tracks in the same or a related key.',
+    how: '±6% is about what the tempo fader can bridge at its default range.',
   },
   shortcut: {
     title: 'SHORTCUT',
     what: 'Opens a shortcut screen with quick settings like quantize beat value, beat jump size and phase meter display.',
     how: 'Lets you change common settings mid-set without digging into UTILITY.',
-    note: 'Not simulated yet.',
+    tip: 'Press SHORTCUT, then touch a row (or turn and push the rotary) to change it. Press SHORTCUT again to close it.',
+  },
+  utility: {
+    title: 'UTILITY SETTINGS',
+    what: 'The player\'s settings. In the sim: PLAY MODE, LOAD LOCK, QUANTIZE BEAT VALUE, AUTO CUE LEVEL, SLIP FLASHING, ON AIR DISPLAY, JOG RING INDICATOR, HOT CUE COLOR and PLAYER No. Each player remembers its own.',
+    how: 'At a venue, check UTILITY if a deck behaves oddly: the last DJ may have left LOAD LOCK on, or PLAY MODE on CONTINUE so the next track starts by itself.',
+    note: 'The real UTILITY menu has more settings (screen brightness, language, link and display options).',
   },
   rotary: {
     title: 'ROTARY SELECTOR',
@@ -85,6 +103,7 @@ export const LEARN_CONTENT = {
     title: 'PLAYER NUMBER',
     what: 'The number this deck has on the PRO DJ LINK network. Players are usually numbered left to right.',
     how: 'The mixer, other players and rekordbox use this number, so you know which deck is which when syncing or sharing tracks.',
+    tip: 'ON AIR: when this deck\'s mixer channel is live (fader up and not cut by the crossfader), the box turns red and so does the jog ring. Don\'t touch a deck that\'s on air unless you mean to!',
   },
   'display-track': {
     title: 'TRACK INFO',
@@ -92,9 +111,27 @@ export const LEARN_CONTENT = {
     how: 'A quick check that you loaded the track you meant to before you bring it in.',
   },
   'display-key': {
-    title: 'KEY',
-    what: 'The musical key of the track, detected by rekordbox (or by the sim when you import a song).',
+    title: 'KEY / KEY SHIFT',
+    what: 'The musical key of the track, detected by rekordbox (or by the sim when you import a song). It shows green when it mixes well with the sync master\'s key. Touch it to open the key panel: KEY SYNC, − / + to shift by a semitone, and RESET.',
     how: 'Harmonic mixing: tracks in the same or neighbouring keys blend without clashing. Many DJs use the key to choose the next track.',
+    tip: 'Touch the key, then + or − to hear the track move up or down without changing its tempo.',
+  },
+  'key-sync': {
+    title: 'KEY SYNC',
+    what: 'Changes this track\'s key to match the sync master\'s: the smallest change that gives the same key or a related one (dominant, subdominant or a relative key). The tempo doesn\'t change.',
+    how: 'Use it to blend two tracks whose keys clash, for a long mix where both melodies play together. Use it sparingly: big shifts sound unnatural.',
+    tip: 'Press MASTER on the other deck first so there\'s a key to sync to.',
+    note: 'Key changes use MASTER TEMPO, so it turns on. Turning MASTER TEMPO off puts the track back in its original key.',
+  },
+  'key-shift': {
+    title: 'KEY SHIFT − / +',
+    what: 'Moves the key down or up one semitone per press, without changing the tempo.',
+    how: 'For creative mashups, or to nudge a track into a key that suits the next one.',
+  },
+  'key-reset': {
+    title: 'KEY RESET',
+    what: 'Puts the track back in its original key.',
+    how: 'Reset after a key-shifted blend so the track plays as the artist made it.',
   },
   'display-zoom': {
     title: 'ZOOMED WAVEFORM',
@@ -157,12 +194,12 @@ export const LEARN_CONTENT = {
   },
   'memory-save': {
     title: 'MEMORY',
-    what: 'Saves the current position as a memory cue. Memory cues show on the overview waveform but aren\'t on pads.',
+    what: 'Saves the current position as a memory cue, saved with the track so it\'s there next time. Memory cues show as red triangles on the waveforms but aren\'t on pads. With Auto Cue on, a track loads at its first memory cue.',
     how: 'DJs mark useful spots like the first beat, the breakdown and the outro while preparing tracks, then step through them during a set.',
   },
   'memory-call': {
     title: 'CUE/LOOP CALL ◀ ▶',
-    what: 'Jumps to the previous or next memory cue (or saved loop) in the track.',
+    what: 'Jumps to the previous or next memory cue from where the track is, and waits there paused with it as the cue point.',
     how: 'A fast way to get to a pre-marked mix-in point without searching.',
   },
   'memory-delete': {
@@ -173,18 +210,18 @@ export const LEARN_CONTENT = {
   },
   hotcue: {
     title: 'HOT CUE A–H',
-    what: 'Eight pads that each store a point in the track. Press an empty pad to save the current position; press a lit pad to jump there and play instantly. To delete one, hold DELETE and press the pad.',
+    what: 'Eight pads that each store a point in the track. Press an empty pad to save the current position (or, while a loop plays, the loop: it lights orange); press a lit pad to jump there and play instantly. To delete one, hold DELETE and press the pad.',
     how: 'DJs set hot cues on drops, vocals and breakdowns to jump around the track, remix live or start a mix from exactly the right beat. Hot cues stay with the track and come back every time it\'s loaded.',
     tip: 'Play a track, tap pad A to save a cue, then tap it again to jump back.',
   },
   'loop-in': {
     title: 'LOOP IN / CUE',
-    what: 'Sets the start of a loop at the current position, and sets the cue point there too. Once a loop exists, it adjusts the loop\'s start.',
+    what: 'Sets the start of a loop at the current position, and sets the cue point there too. While a loop plays, it switches to IN ADJUST (the button blinks): turn the jog to move the loop\'s start, and press it again to finish.',
     how: 'Press IN at the start of a phrase, then OUT a few beats later to loop it. It\'s also how you set a new cue point without stopping the track.',
   },
   'loop-out': {
     title: 'LOOP OUT',
-    what: 'Sets the end of the loop at the current position and starts looping. While looping, it adjusts the loop\'s end.',
+    what: 'Sets the end of the loop at the current position and starts looping. While a loop plays, it switches to OUT ADJUST (the button blinks): turn the jog to move the loop\'s end, and press it again to finish.',
     how: 'Use it right after LOOP IN for a manual loop of any length.',
   },
   'loop-reloop-exit': {
@@ -235,19 +272,19 @@ export const LEARN_CONTENT = {
   },
   'mode-slip': {
     title: 'SLIP',
-    what: 'While SLIP is on, the track keeps counting in the background during loops, scratches, hot cues and reverse. When you let go, it picks up where it would have been.',
+    what: 'While SLIP is on, the track keeps counting in the background during loops, scratches, hot cues and reverse. When you let go, it picks up where it would have been. The button flashes while a slip action is running, and a blue line on the overview waveform shows where the track will come back in.',
     how: 'DJs use it for loops, stutters and scratches that never knock the track out of time with the mix.',
-    tip: 'Turn on SLIP, start a 4-beat loop, wait, then EXIT: the track jumps ahead to where it would have been.',
+    tip: 'Turn on SLIP, start a 4-beat loop, wait, then EXIT: the track jumps ahead to where it would have been. With SLIP on, hot cues only play while you hold the pad.',
   },
   direction: {
     title: 'DIRECTION (FWD / REV / SLIP REV)',
-    what: 'Plays the track forward or in reverse. SLIP REV plays backward only while held, then carries on as if it had never reversed.',
+    what: 'Plays the track forward or in reverse. FWD and REV stay where you put them. SLIP REV is spring-loaded: it plays backward only while held, then carries on as if it had never reversed.',
     how: 'A quick reverse "rewind" effect, often on a vocal or the last beat before a drop.',
-    note: 'The browser can\'t play audio backward, so reverse only changes the display here.',
+    note: 'Reverse needs the mixer audio engine (web or a dev build). In Expo Go it only changes the display.',
   },
   'jog-wheel': {
     title: 'JOG WHEEL',
-    what: 'The big platter. Turning the outer edge nudges the speed to bring two tracks into time. In VINYL mode, touching the top holds the track like a record, so dragging it plays the music forward or backward (scratching). The center screen shows the play position and cue.',
+    what: 'The big platter. Turning the outer edge nudges the speed to bring two tracks into time. In VINYL mode, touching the top holds the track like a record, so dragging it plays the music forward or backward (scratching). The centre screen shows the artwork, the play position pointer, the cue point marker, a blue SLIP pointer, and SLIP / SYNC / MASTER / VINYL indicators. The ring lights red when the deck is ON AIR, and blinks in the last 30 seconds of the track.',
     how: 'After matching BPMs, DJs nudge the jog to line up the kick drums by ear. While paused, it moves through the track a frame at a time to find a precise cue point.',
     tip: 'Turn on VINYL with JOG MODE, play a track, then hold the top of the jog and drag it back and forth.',
   },
@@ -383,6 +420,29 @@ export const LEARN_CONTENT = {
     title: 'CUE (HEADPHONES)',
     what: 'Sends this channel to your headphones, whether or not its fader is up.',
     how: 'The key to mixing: listen to the next track in your headphones and beatmatch it before the crowd hears it.',
+    tip: 'Pull channel 2\'s fader down, press its CUE, play deck B and turn HEADPHONES MIXING toward CUE: you hear deck B, the "crowd" doesn\'t.',
+    note: 'The real V10 has two headphone outputs (CUE A and CUE B). The sim has one, which is what your device plays.',
+  },
+  'hp-mixing': {
+    title: 'HEADPHONES MIXING',
+    what: 'Blends what you hear in your headphones between the channels with CUE on (left) and the master mix (right).',
+    how: 'Many DJs keep it near the middle so they hear the incoming track over the mix, then check each one by turning it fully left or right.',
+    note: 'In the sim your device\'s speakers or headphones play the HEADPHONES output, so it starts at MASTER.',
+  },
+  'hp-level': {
+    title: 'HEADPHONES LEVEL',
+    what: 'How loud your headphones are.',
+    how: 'Keep it as low as you can and still hear the beats clearly. Loud headphones in a loud booth damage hearing fast.',
+  },
+  'hp-split': {
+    title: 'MONO SPLIT',
+    what: 'Puts the cued channels in your left ear and the master in your right.',
+    how: 'A classic way to beatmatch: compare the two tracks one in each ear, without moving the MIXING knob.',
+  },
+  'hp-pre-eq': {
+    title: 'PRE EQ',
+    what: 'Cues channels before their EQ and filter, so you hear the track untouched even while its EQ is cut.',
+    how: 'Handy when the incoming track\'s bass is cut for the mix but you want to hear its kick to beatmatch.',
   },
   'ch-fader': {
     title: 'CHANNEL FADER',
@@ -397,8 +457,9 @@ export const LEARN_CONTENT = {
   },
   'ch-meter': {
     title: 'CHANNEL LEVEL METER',
-    what: 'Shows how loud this channel is after TRIM and EQ.',
-    how: 'Keep the peaks in the same zone on every channel (around the orange) and out of the red to avoid distortion.',
+    what: 'Shows how loud this channel is after TRIM, EQ and FILTER, before its fader. The red segments mean it\'s going over 0 dB.',
+    how: 'Set TRIM so the loud parts of every track peak in the orange and never hit the red. Then the faders control the mix and nothing distorts.',
+    tip: 'Play a deck and turn its TRIM up until the red segments flicker, then back off.',
   },
   crossfader: {
     title: 'CROSSFADER',
@@ -429,15 +490,21 @@ export const LEARN_CONTENT = {
   },
 
   // ── Mixer: filter ─────────────────────────────────────────────────────
-  'filter-mode': {
-    title: 'FILTER (LPF / OFF / HPF)',
-    what: 'Picks the filter type. LPF (low-pass) removes highs for a muffled, underwater sound. HPF (high-pass) removes bass for a thin, distant sound.',
-    how: 'Filters are one of the most used effects: sweep a high-pass on the outgoing track to clear room for the new one.',
+  'filter-lpf': {
+    title: 'LPF',
+    what: 'Turns on the low-pass side of every channel\'s FILTER knob. A low-pass removes the highs for a muffled, underwater sound.',
+    how: 'Turn a channel\'s FILTER knob left to sweep it in. Leave LPF off if you only ever want the knob to high-pass.',
   },
-  'filter-freq': {
-    title: 'FILTER FREQ',
-    what: 'Sets where the filter cuts. Sweep it to open or close the sound.',
-    how: 'Slow sweeps over 8 or 16 bars build tension into a drop.',
+  'filter-hpf': {
+    title: 'HPF',
+    what: 'Turns on the high-pass side of every channel\'s FILTER knob. A high-pass removes the bass for a thin, distant sound.',
+    how: 'Turn a channel\'s FILTER knob right to sweep it in. Sweeping a high-pass on the outgoing track clears room for the new one.',
+  },
+  'ch-filter': {
+    title: 'FILTER',
+    what: 'This channel\'s filter. Centre is off. Turn left for a low-pass (muffled), right for a high-pass (thin). The LPF and HPF buttons choose which sides work, and RESONANCE sets the edge.',
+    how: 'Filters are one of the most used effects: slow sweeps over 8 or 16 bars build tension into a drop, or ease a track out of the mix.',
+    tip: 'Play a deck and turn its FILTER knob slowly to the right, then back to the middle.',
   },
   'filter-resonance': {
     title: 'FILTER RESONANCE',
@@ -446,40 +513,43 @@ export const LEARN_CONTENT = {
   },
 
   // ── Mixer: send FX ────────────────────────────────────────────────────
-  'sendfx-source': {
-    title: 'SEND / RETURN (INT / EXT1 / EXT2)',
-    what: 'Chooses where the send effect comes from: the mixer\'s built-in effects (INT) or an external effects unit plugged into EXT1 or EXT2.',
-    how: 'Some DJs bring their own effects pedal or sampler and plug it in here.',
+  'sendfx-type': {
+    title: 'SEND (SHORT DELAY / LONG DELAY / DUB ECHO / REVERB / EXT1 / EXT2)',
+    what: 'Picks the send effect: one of the V10\'s four built-in effects, or an external effects unit plugged into EXT1 or EXT2.',
+    how: 'Unlike BEAT FX, the send effect can run on several channels at once: each channel\'s SEND knob sets how much goes in. DUB ECHO and REVERB are favourites for throwing a vocal or the end of a phrase into space.',
+    tip: 'Pick DUB ECHO, play a deck and turn up that channel\'s SEND knob for a beat, then back down. The echoes keep going.',
+    note: 'No external unit is plugged in here, so EXT1 and EXT2 are silent.',
   },
   'sendfx-size': {
-    title: 'SEND FX SIZE / FEEDBACK',
-    what: 'Sets the size of the reverb space or the feedback of a delay.',
-    how: 'Bigger sizes give long washes, useful for ending a track or covering a transition.',
+    title: 'SIZE/FEEDBACK',
+    what: 'For the delays, how many times the echo repeats (feedback). For REVERB, the size of the room.',
+    how: 'High feedback gives long, building echoes. Pull it back before they pile up into noise.',
   },
   'sendfx-time': {
-    title: 'SEND FX TIME',
-    what: 'Sets the delay or reverb time.',
-    how: 'Set delays to a musical time so echoes land on the beat.',
+    title: 'TIME',
+    what: 'The delay time (SHORT DELAY 20–400 ms, LONG DELAY and DUB ECHO up to 1.5 s), or how long the reverb lasts.',
+    how: 'The send effect doesn\'t follow the BPM like BEAT FX, so DJs set TIME by ear until the echoes sit on the groove.',
   },
   'sendfx-tone': {
-    title: 'SEND FX TONE',
-    what: 'Filters the effect\'s sound, darker or brighter.',
-    how: 'Darken a reverb so it doesn\'t fight the music\'s highs.',
+    title: 'TONE',
+    what: 'A filter on the effect sound only. Left makes it darker, right makes it thinner. The middle leaves it as it is.',
+    how: 'Thin out a reverb so its low end doesn\'t muddy the kick, or darken a dub echo so each repeat sinks into the mix.',
   },
-  'sendfx-send': {
-    title: 'SEND LEVEL',
-    what: 'How much of the channel goes into the send effect.',
-    how: 'Ride it up on the last beat of a phrase to send a vocal off into a long echo.',
+  'ch-send': {
+    title: 'SEND',
+    what: 'How much of this channel goes into the SEND effect. The effect sound comes back in on the same channel, so the channel fader controls it too.',
+    how: 'Ride it up on the last word of a vocal or the last beat of a phrase, then back down, to throw just that moment into the effect.',
+    tip: 'Turn MASTER MIX on if you want the effect to keep sounding after you pull the fader down.',
   },
   'sendfx-masterlevel': {
-    title: 'SEND FX MIX LEVEL',
-    what: 'The volume of the effect coming back into the mix.',
-    how: 'Balance how loud the effect sounds against the dry music.',
+    title: 'MASTER MIX LEVEL',
+    what: 'The volume of the send effect sound going straight to the master while MASTER MIX is on.',
+    how: 'Balance how loud the effect sounds against the music.',
   },
   'sendfx-mastermix': {
     title: 'MASTER MIX',
-    what: 'Sends the whole master output through the send effect, not just one channel.',
-    how: 'Put a reverb or echo over everything for a big ending or breakdown.',
+    what: 'Routes the send effect sound of every channel straight to the master output, instead of back through each channel.',
+    how: 'With MASTER MIX on, the effect\'s tail keeps playing even after you close the channel fader: send the outgoing track into a long echo, then pull its fader down.',
   },
 
   // ── Mixer: master ─────────────────────────────────────────────────────
@@ -512,18 +582,60 @@ export const LEARN_CONTENT = {
   // ── Mixer: beat FX ────────────────────────────────────────────────────
   'beatfx-effect': {
     title: 'BEAT FX SELECT',
-    what: 'Picks the Beat FX effect: echo, delay, spiral, reverb, flanger, filter, trans, roll and more. They sync to the BPM automatically.',
-    how: 'Choose an effect before you need it so it\'s ready on the right beat.',
+    what: 'Picks one of the V10\'s 14 Beat FX: DELAY, ECHO, PING PONG, SPIRAL, HELIX, REVERB, SHIMMER, FLANGER, PHASER, FILTER, TRANS, ROLL, PITCH and VINYL BRAKE. Their timing follows the BPM.',
+    how: 'Choose an effect before you need it so it\'s ready on the right beat. ECHO on the outgoing track is the classic way to end a mix.',
   },
   'beatfx-assign': {
     title: 'BEAT FX ASSIGN',
-    what: 'Chooses which channel the Beat FX applies to, or the master output.',
-    how: 'Usually the outgoing track, for example an echo-out on the last phrase.',
+    what: 'Chooses where the Beat FX goes: a channel, or the master output.',
+    how: 'Usually the outgoing track, for example an echo-out on its last phrase. On a channel the effect comes after the fader, so echoes keep sounding when you pull the fader down.',
   },
   'beatfx-onoff': {
     title: 'BEAT FX ON/OFF',
-    what: 'Turns the selected Beat FX on or off.',
-    how: 'Tap it on the beat for an effect that lands in time, then off before it gets messy.',
+    what: 'Turns the Beat FX on or off. It flashes while the effect is on.',
+    how: 'Tap it on the beat. Delay, echo and reverb types leave their tail ringing out after you turn them off.',
+  },
+  'beatfx-beat': {
+    title: 'BEAT ◀ ▶',
+    what: 'Sets the effect time in beats (1/16 up to 16 or 64 beats). For REVERB and SHIMMER it sets the amount, and for PITCH the pitch change.',
+    how: 'Shorter beats for tight stutters and rolls, longer ones for slow sweeps. A 3/4 beat echo is a favourite for echo-outs.',
+  },
+  'beatfx-xpad': {
+    title: 'X-PAD',
+    what: 'Touch a beat value on the display to switch to it and turn the effect on while you hold it.',
+    how: 'Great for ROLL and TRANS: hold 1/2, then 1/4, then 1/8 for a build-up, and let go on the drop.',
+    tip: 'Pick ROLL, play a deck, and hold the X-PAD values from left to right.',
+  },
+  'beatfx-display': {
+    title: 'BEAT FX DISPLAY',
+    what: 'Shows the effect, the channel it\'s on, the BPM it\'s following (AUTO or TAP), the BEAT value and the effect time.',
+    how: 'Glance at the BPM before you hit ON: if AUTO hasn\'t locked to the track, echoes will drift.',
+  },
+  'beatfx-autotap': {
+    title: 'AUTO / TAP',
+    what: 'AUTO measures the BPM of the channel the effect is on (70–180 BPM). TAP uses a tempo you tap in instead.',
+    how: 'Use TAP when AUTO can\'t read the beat, for example over a beatless intro.',
+    note: 'The sim\'s AUTO reads the BPM from the deck on that channel.',
+  },
+  'beatfx-tap': {
+    title: 'TAP',
+    what: 'Tap along with the beat to set the Beat FX tempo by hand. It switches to TAP mode.',
+    how: 'Tap four or more times on the kick drum.',
+  },
+  'beatfx-freq': {
+    title: 'FX FREQUENCY (HI / MID / LOW)',
+    what: 'Picks which frequency bands get the effect. Unlit bands play through untouched.',
+    how: 'Turn LOW off so an echo or reverb doesn\'t smear the bass, keeping the kick clean.',
+  },
+  'beatfx-time': {
+    title: 'TIME',
+    what: 'Sets the effect time by hand in milliseconds (or %), instead of in beats. The BEAT buttons switch back to beat timing.',
+    how: 'For off-grid textures, or when there\'s no steady beat to sync to.',
+  },
+  'beatfx-depth': {
+    title: 'LEVEL/DEPTH',
+    what: 'How much effect you hear. Fully left is just the original sound. For most effects it\'s the balance between original and effect, and for some (TRANS, FLANGER, VINYL BRAKE) it\'s how strong the effect is.',
+    how: 'Bring it up gradually through a build, rather than slamming the effect in at full.',
   },
 };
 
@@ -552,7 +664,14 @@ const ALIASES = [
   [/^track-search-(back|forward)$/, 'track-search'],
   [/^search-(back|forward)$/, 'search'],
   [/^direction(-.*)?$/, 'direction'],
-  [/^(ch-assign|mic-mode|filter-mode|sendfx-source)(-.*)?$/, '$1'],
+  [/^(ch-assign|mic-mode|filter-mode|sendfx-type|beatfx-xpad|beatfx-freq)(-.*)?$/, '$1'],
+  [/^beatfx-effect-(prev|next)$/, 'beatfx-effect'],
+  [/^beatfx-beat-(up|down)$/, 'beatfx-beat'],
+  [/^key-(up|down)$/, 'key-shift'],
+  [/^search-key(-.*)?$/, 'search-key'],
+  [/^utility-.*$/, 'utility'],
+  [/^filter-(onoff|bpm-.*|key-.*)$/, 'filter'],
+  [/^jog-display$/, 'jog-wheel'],
   [/^master-iso-(hi|mid|low)$/, 'master-iso'],
 ];
 

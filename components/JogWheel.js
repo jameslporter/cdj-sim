@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
 import { useLearnTarget } from '../hooks/useLearningMode';
+import useBlink from '../hooks/useBlink';
 import { SECONDS_PER_REV } from '../hooks/useJogEngine';
+import { waveSeed } from './Waveform';
 
 const SIZE = 300;
 const RING = SIZE - 14;
@@ -32,13 +34,38 @@ const wrap = (a) => {
 // shows the playback position. Drag it with a finger or the mouse: the top
 // plate is touch-sensitive (scratch in VINYL mode), the outer ring isn't
 // (pitch bend).
-export default function JogWheel({ isPlaying, reverse, vinylMode, jogAdjust = 0.5, jog, idPrefix = '' }) {
+//
+// The centre display shows the track's artwork, the play position pointer,
+// the cue point marker and (in SLIP) where the track would be. The ring
+// around the platter lights red while this deck's mixer channel is ON AIR,
+// and the display flashes in the last 30 seconds of the track.
+// Placeholder "artwork" for tracks without any: a coloured label with the
+// title's initial, like a record label.
+const LABEL_COLORS = ['#7a2e2e', '#2e4f7a', '#2e7a55', '#6b2e7a', '#7a5a2e', '#2e6f7a'];
+
+export default function JogWheel({
+  isPlaying,
+  reverse,
+  vinylMode,
+  jogAdjust = 0.5,
+  jog,
+  cuePoint = 0,
+  getSlipPosition = null,
+  onAir = false,
+  endWarning = false,
+  track = null,
+  synced = false,
+  isMaster = false,
+  idPrefix = '',
+}) {
   const platterAngle = useRef(new Animated.Value(0)).current;
   const pointerAngle = useRef(new Animated.Value(0)).current;
+  const slipAngle = useRef(new Animated.Value(0)).current;
+  const warnOn = useBlink(endWarning, 400);
   const [heldTop, setHeldTop] = useState(false);
 
   const live = useRef({});
-  live.current = { jog, jogAdjust };
+  live.current = { jog, jogAdjust, getSlipPosition };
 
   const g = useRef({
     angle: 0, // platter angle, revolutions
@@ -141,6 +168,8 @@ export default function JogWheel({ isPlaying, reverse, vinylMode, jogAdjust = 0.
         g.pointer = pos;
         pointerAngle.setValue((pos / SECONDS_PER_REV) * 360);
       }
+      const slip = live.current.getSlipPosition?.();
+      if (slip != null) slipAngle.setValue((slip / SECONDS_PER_REV) * 360);
       id = requestAnimationFrame(tick);
     };
     id = requestAnimationFrame(tick);
@@ -148,13 +177,20 @@ export default function JogWheel({ isPlaying, reverse, vinylMode, jogAdjust = 0.
       cancelAnimationFrame(id);
       g.coasting = false;
     };
-  }, [g, pointerAngle]);
+  }, [g, pointerAngle, slipAngle]);
 
   const platterRotate = platterAngle.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
   const pointerRotate = pointerAngle.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
 
+  const slipRotate = slipAngle.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'], extrapolate: 'extend' });
+  const cueRotate = `${((cuePoint || 0) / SECONDS_PER_REV) * 360}deg`;
+
   const held = heldTop && vinylMode;
-  const ringColor = held ? cdj.ledOrange : cdj.jogRing;
+  // The ring blinks as the track runs out (JOG RING INDICATOR), and is red ON AIR.
+  const warnFlash = endWarning && !warnOn;
+  const ringColor = warnFlash ? '#2a0606' : onAir ? cdj.onAir : held ? cdj.ledOrange : cdj.jogRing;
+  const labelColor = LABEL_COLORS[track ? waveSeed(String(track.id ?? track.title ?? '')) % LABEL_COLORS.length : 0];
+  const initial = (track?.title ?? '').trim().charAt(0).toUpperCase();
   const learn = useLearnTarget(`${idPrefix}jog-wheel`);
 
   return (
@@ -177,16 +213,39 @@ export default function JogWheel({ isPlaying, reverse, vinylMode, jogAdjust = 0.
           <View style={styles.platterNotch} />
         </Animated.View>
 
-        <View style={[styles.lcdBezel, held && styles.lcdBezelHeld]}>
+        <View
+          testID={`${idPrefix}jog-display`}
+          style={[styles.lcdBezel, held && styles.lcdBezelHeld]}
+        >
           <View style={styles.lcd}>
+            {track ? (
+              <View style={[styles.artwork, { backgroundColor: labelColor }]}>
+                <View style={styles.artworkHole} />
+                <Text style={styles.artworkInitial}>{initial}</Text>
+              </View>
+            ) : null}
             <View style={styles.lcdTrack} />
+            <View style={[styles.lcdSpin, { transform: [{ rotate: cueRotate }] }]}>
+              <View style={styles.cueDot} />
+            </View>
+            {getSlipPosition ? (
+              <Animated.View style={[styles.lcdSpin, { transform: [{ rotate: slipRotate }] }]}>
+                <View style={styles.slipPointer} />
+              </Animated.View>
+            ) : null}
             <Animated.View style={[styles.lcdSpin, { transform: [{ rotate: pointerRotate }] }]}>
               <View style={styles.lcdPointer} />
             </Animated.View>
-            <View style={styles.cueDot} />
-            <Text style={styles.lcdMode}>{vinylMode ? 'VINYL' : 'CDJ'}</Text>
-            <Text style={styles.lcdGlyph}>{isPlaying && !held ? '▶' : '❚❚'}</Text>
-            <Text style={styles.lcdSub}>{reverse ? 'REV' : held ? 'TOUCH' : ' '}</Text>
+            <View style={styles.lcdInfo}>
+              <View style={styles.lcdIndicators}>
+                <Text style={[styles.lcdInd, getSlipPosition && styles.lcdIndOn]}>SLIP</Text>
+                <Text style={[styles.lcdInd, synced && styles.lcdIndSync]}>SYNC</Text>
+                <Text style={[styles.lcdInd, isMaster && styles.lcdIndMaster]}>MASTER</Text>
+              </View>
+              <Text style={[styles.lcdMode, vinylMode && styles.lcdIndOn]}>{vinylMode ? 'VINYL' : 'CDJ'}</Text>
+              <Text style={styles.lcdGlyph}>{isPlaying && !held ? '▶' : '❚❚'}</Text>
+              <Text style={styles.lcdSub}>{reverse ? 'REV' : held ? 'TOUCH' : ' '}</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -262,6 +321,62 @@ const styles = StyleSheet.create({
   },
   lcdBezelHeld: {
     borderColor: cdj.ledOrange,
+  },
+  lcdIndicators: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  lcdInd: {
+    color: '#465059',
+    fontSize: 7,
+    fontWeight: '800',
+  },
+  lcdIndOn: {
+    color: cdj.screenText,
+  },
+  lcdIndSync: {
+    color: '#4fd8c4',
+  },
+  lcdIndMaster: {
+    color: cdj.ledOrange,
+  },
+  artwork: {
+    position: 'absolute',
+    width: LCD - 22,
+    height: LCD - 22,
+    borderRadius: (LCD - 22) / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0.55,
+  },
+  artworkHole: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#000',
+  },
+  artworkInitial: {
+    position: 'absolute',
+    top: 10,
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  lcdInfo: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 30,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  slipPointer: {
+    width: 4,
+    height: 10,
+    marginTop: 4,
+    borderRadius: 2,
+    backgroundColor: cdj.slip,
   },
   lcd: {
     width: LCD,

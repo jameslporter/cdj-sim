@@ -69,6 +69,8 @@ export const cdj = {
   ledGreen: '#25e36a',
   ledBlue: '#3b8cff',
   jogRing: '#cfe6ff',
+  onAir: '#ff2a2a', // ON AIR: jog ring and player number while the mixer channel is live
+  slip: '#4f9dff',
   jogPlatter: '#101112',
   jogPlatterRing: '#191a1c',
   jogBezel: '#050505',

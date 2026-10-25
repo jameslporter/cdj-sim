@@ -1,4 +1,5 @@
 import { resolveAudioSource } from './audioSource';
+import { getAudioApi, getAudioContext, sourceToDecodable } from './audioContext';
 
 // Scratch audio: the deck's normal player (expo-audio) can't play backward or
 // follow a hand on the platter, so while the jog is driving the audio we play
@@ -18,47 +19,14 @@ const CHUNK_SECONDS = 3;
 const FADE = 0.006; // seconds: crossfade between chunks so a switch doesn't click
 const MAX_RATE = 4;
 
-let api;
-function getApi() {
-  if (api === undefined) {
-    try {
-      api = require('react-native-audio-api');
-    } catch {
-      api = null;
-    }
-  }
-  return api;
-}
-
-let context = null;
-function getContext() {
-  const audio = getApi();
-  if (!audio) return null;
-  if (!context) {
-    try {
-      context = new audio.AudioContext({ sampleRate: 44100 });
-    } catch {
-      return null;
-    }
-  }
-  return context;
-}
+const getApi = getAudioApi;
+const getContext = getAudioContext;
 
 export const isScratchAudioSupported = () => getApi() != null;
 
 // Decoded mono samples per track id, kept for the last few tracks.
 const cache = new Map();
 const CACHE_SIZE = 4;
-
-async function sourceToDecodable(source) {
-  if (typeof source === 'number') {
-    const { Asset } = require('expo-asset');
-    const asset = Asset.fromModule(source);
-    await asset.downloadAsync();
-    return asset.localUri || asset.uri;
-  }
-  return source?.uri ?? source;
-}
 
 /** Decode a track for scratching. Resolves to { samples, sampleRate } or null. */
 export function loadScratchSamples(track) {
@@ -86,11 +54,12 @@ export function loadScratchSamples(track) {
 }
 
 /**
- * One deck's scratch output. Call setSpeed() every frame with the audio's
+ * One deck's scratch output. `getDestination()` returns the node to play into
+ * (the deck's mixer channel), or null for the speakers directly. Call setSpeed() every frame with the audio's
  * speed in track-seconds per second (negative = backward) and the deck's
  * position; the voice keeps its own chunk lined up with that position.
  */
-export function createScratchVoice() {
+export function createScratchVoice(getDestination = null) {
   let data = null; // { samples, sampleRate }
   let current = null; // { source, gain, dir, startPos, endPos }
   let volume = 1;
@@ -142,7 +111,7 @@ export function createScratchVoice() {
     const gain = audioCtx.createGain();
     gain.gain.value = 0;
     source.connect(gain);
-    gain.connect(audioCtx.destination);
+    gain.connect(getDestination?.() ?? audioCtx.destination);
     const now = audioCtx.currentTime;
     gain.gain.setTargetAtTime(level * volume, now, FADE / 3);
     source.start(now);

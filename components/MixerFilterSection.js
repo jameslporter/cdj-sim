@@ -1,29 +1,35 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
+import CdjButton from './CdjButton';
 import Knob from './Knob';
-import ThreeWaySwitch from './ThreeWaySwitch';
 
-const MODE_OPTIONS = [
-  { value: 'lpf', label: 'LPF' },
-  { value: 'off', label: 'OFF' },
-  { value: 'hpf', label: 'HPF' },
-];
-
+// FILTER section: LPF and HPF choose which way each channel's FILTER knob
+// works (turn left for the low-pass, right for the high-pass). RESONANCE
+// adds the peak at the cutoff for all channels.
 function MixerFilterSection({ filter, onChange }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>FILTER</Text>
-      <ThreeWaySwitch
-        testID="mixer-filter-mode"
-        options={MODE_OPTIONS}
-        value={filter.mode}
-        onChange={(v) => onChange({ mode: v })}
-      />
-      <Knob testID="mixer-filter-freq" label="FREQ" value={filter.freq} onChange={(v) => onChange({ freq: v })} />
+      <View style={styles.buttons}>
+        <CdjButton
+          testID="mixer-filter-lpf"
+          label="LPF"
+          active={filter.lpf}
+          onPress={() => onChange({ lpf: !filter.lpf })}
+          style={styles.button}
+        />
+        <CdjButton
+          testID="mixer-filter-hpf"
+          label="HPF"
+          active={filter.hpf}
+          onPress={() => onChange({ hpf: !filter.hpf })}
+          style={styles.button}
+        />
+      </View>
       <Knob
         testID="mixer-filter-resonance"
-        label="RES"
+        label="RESONANCE"
         value={filter.resonance}
         onChange={(v) => onChange({ resonance: v })}
       />
@@ -34,6 +40,14 @@ function MixerFilterSection({ filter, onChange }) {
 export default memo(MixerFilterSection);
 
 const styles = StyleSheet.create({
+  buttons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  button: {
+    width: 40,
+    height: 26,
+  },
   section: {
     alignItems: 'center',
     gap: 10,
