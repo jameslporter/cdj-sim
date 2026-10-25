@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cdj } from '../constants/theme';
 import { formatTime } from '../utils/format';
-import Waveform, { ZoomWaveform } from './Waveform';
+import TouchWaveform from './TouchWaveform';
+import { waveSeed, ZoomWaveform } from './Waveform';
 
 // The CDJ-3000X's main player screen: track header, zoomed waveform,
 // overview waveform and the time / tempo / BPM strip along the bottom.
@@ -19,8 +20,16 @@ export default function TrackDisplay({
   onToggleTimeMode,
   progressRatio,
   loopRange,
+  hotCues,
+  gateCue,
+  onToggleGateCue,
+  previewRatio,
+  onOverviewTouchStart,
+  onOverviewTouchMove,
+  onOverviewTouchEnd,
   idPrefix = '',
 }) {
+  const seed = waveSeed(track.id);
   const timeValue = timeMode === 'REMAIN' ? duration - elapsed : elapsed;
   const timePrefix = timeMode === 'REMAIN' ? '-' : '';
   const [bpmWhole, bpmFrac] = String(bpm).split('.');
@@ -40,16 +49,39 @@ export default function TrackDisplay({
             {track.artist}
           </Text>
         </View>
+        <Pressable
+          testID={`${idPrefix}gate-cue`}
+          onPress={onToggleGateCue}
+          style={[styles.touchKey, gateCue && styles.touchKeyOn]}
+        >
+          <Text style={[styles.touchKeyText, gateCue && styles.touchKeyTextOn]}>GATE CUE</Text>
+        </Pressable>
         <View style={styles.keyBox}>
           <Text style={styles.metricLabel}>KEY</Text>
           <Text style={styles.keyValue}>{track.key}</Text>
         </View>
       </View>
 
-      <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} />
+      <ZoomWaveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} seed={seed} />
 
+      {/* Touch the overview: needle search while paused, Touch Cue
+          (preview that spot) while playing. */}
       <View style={styles.overview}>
-        <Waveform progressRatio={progressRatio} loopRange={loopRange} peaks={track.peaks} />
+        <TouchWaveform
+          testID={`${idPrefix}overview-waveform`}
+          seed={seed}
+          peaks={track.peaks}
+          height={30}
+          barCount={90}
+          progressRatio={progressRatio}
+          loopRange={loopRange}
+          hotCues={hotCues}
+          duration={duration}
+          previewRatio={previewRatio}
+          onTouchStart={onOverviewTouchStart}
+          onTouchMove={onOverviewTouchMove}
+          onTouchEnd={onOverviewTouchEnd}
+        />
       </View>
 
       <View style={styles.strip}>
@@ -92,7 +124,6 @@ export default function TrackDisplay({
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   display: {
@@ -139,6 +170,26 @@ const styles = StyleSheet.create({
   trackArtist: {
     color: cdj.screenTextDim,
     fontSize: 11,
+  },
+  touchKey: {
+    borderWidth: 1,
+    borderColor: '#3a4048',
+    borderRadius: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  touchKeyOn: {
+    borderColor: cdj.ledRed,
+    backgroundColor: '#2a0d0c',
+  },
+  touchKeyText: {
+    color: cdj.screenTextDim,
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  touchKeyTextOn: {
+    color: cdj.ledRed,
   },
   keyBox: {
     alignItems: 'flex-end',

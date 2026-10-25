@@ -31,7 +31,15 @@ function WaveColumn({ amp, height, dim }) {
 // Played part is greyed out, like the CDJ-3000X.
 // Imported tracks carry real loudness `peaks` from analysis; demo tracks use
 // the synthetic envelope above.
-export default function Waveform({ progressRatio, loopRange, peaks, height = 30, barCount = 90 }) {
+export default function Waveform({
+  progressRatio,
+  loopRange,
+  peaks,
+  height = 30,
+  barCount = 90,
+  seed = 0,
+  showPlayhead = true,
+}) {
   const amps = useMemo(() => {
     const result = [];
     for (let i = 0; i < barCount; i += 1) {
@@ -42,11 +50,11 @@ export default function Waveform({ progressRatio, loopRange, peaks, height = 30,
         for (let k = from; k < to; k += 1) m = Math.max(m, peaks[k]);
         result.push(m);
       } else {
-        result.push(waveSample(i * 4.4));
+        result.push(waveSample(i * 4.4 + seed));
       }
     }
     return result;
-  }, [barCount, peaks]);
+  }, [barCount, peaks, seed]);
 
   const clamped = Math.min(1, Math.max(0, progressRatio));
 
@@ -66,21 +74,37 @@ export default function Waveform({ progressRatio, loopRange, peaks, height = 30,
           ]}
         />
       ) : null}
-      <View style={[styles.playhead, { left: `${clamped * 100}%` }]} />
+      {showPlayhead ? <View style={[styles.playhead, { left: `${clamped * 100}%` }]} /> : null}
     </View>
   );
 }
 
+// A stable per-track offset into the synthetic waveform, so tracks without
+// analysed peaks still draw different shapes.
+export function waveSeed(id = '') {
+  let h = 0;
+  for (let i = 0; i < id.length; i += 1) h = (h * 31 + id.charCodeAt(i)) % 9973;
+  return h;
+}
+
 // Zoomed, scrolling waveform (main area of the CDJ screen). The track moves
 // past a fixed playhead in the centre.
-export function ZoomWaveform({ progressRatio, loopRange, peaks, height = 86, visibleBars = 72, totalBars = 1400 }) {
+export function ZoomWaveform({
+  progressRatio,
+  loopRange,
+  peaks,
+  height = 86,
+  visibleBars = 72,
+  totalBars = 1400,
+  seed = 0,
+}) {
   const pos = Math.min(1, Math.max(0, progressRatio)) * totalBars;
   const first = Math.floor(pos) - visibleBars / 2;
 
   const columns = [];
   for (let k = 0; k < visibleBars; k += 1) {
     const i = first + k;
-    const sample = peaks?.length ? peaks[Math.floor((i / totalBars) * peaks.length)] : waveSample(i);
+    const sample = peaks?.length ? peaks[Math.floor((i / totalBars) * peaks.length)] : waveSample(i + seed);
     const amp = i < 0 || i >= totalBars ? 0 : sample;
     columns.push(<WaveColumn key={k} amp={amp} height={height} dim={false} />);
   }
