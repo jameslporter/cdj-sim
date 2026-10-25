@@ -75,7 +75,13 @@ export default function DjmMixer({ mixer, beatFxBpm }) {
           <MixerHeadphonesSection headphones={mixer.headphones} onChange={handleChangeHeadphones} />
         </View>
 
-        <MixerBeatFxSection beatFx={mixer.beatFx} bpm={beatFxBpm} onChange={handleChangeBeatFx} />
+        <MixerBeatFxSection
+          beatFx={mixer.beatFx}
+          bpm={beatFxBpm}
+          onChange={handleChangeBeatFx}
+          faderCurve={mixer.master.faderCurve}
+          onChangeMaster={handleChangeMaster}
+        />
       </ScrollView>
     </View>
   );

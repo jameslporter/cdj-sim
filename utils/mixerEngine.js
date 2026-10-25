@@ -47,8 +47,42 @@ export function trimKnobToGain(v) {
   return 10 ** (db / 20);
 }
 
-// Channel fader travel → gain, with a log-ish taper like a real fader.
-export const faderToGain = (v) => (v <= 0 ? 0 : v ** 2.2 * 1.25);
+// Channel fader travel → gain for the V10's three CH FADER CURVE settings:
+// 1 rises steeply near the top, 2 (the usual feel) rises gradually, 3 is linear.
+export const FADER_CURVES = [1, 2, 3];
+const FADER_EXPONENT = { 1: 5, 2: 2.2, 3: 1 };
+export const faderToGain = (v, curve = 2) => (v <= 0 ? 0 : v ** (FADER_EXPONENT[curve] ?? 2.2) * 1.25);
+
+// The COMP knob (0–1): how hard the channel compressor works. It reads the
+// level after TRIM and turns the channel down above a threshold, then makes
+// the gain back up, so quiet parts come up and peaks stay put.
+export function compGainDb(levelDb, amount, reductionDb) {
+  const threshold = -12 - 18 * amount;
+  const ratio = 1 + 7 * amount;
+  const over = Math.max(0, levelDb - threshold);
+  const target = over * (1 - 1 / ratio);
+  // Fast attack, slower release, per ~30 ms tick.
+  const next = reductionDb + (target - reductionDb) * (target > reductionDb ? 0.6 : 0.12);
+  // Make-up gain: what a typical club-level track (−14 dBFS RMS) loses, plus
+  // a little, so turning COMP up sounds denser and a touch louder.
+  const makeup = Math.max(0, -14 - threshold) * (1 - 1 / ratio) + 3 * amount;
+  return { reductionDb: next, gainDb: Math.min(12, makeup - next) };
+}
+
+// The master PEAK LIMITER (on by default on the V10): a soft knee that keeps
+// peaks under full scale instead of clipping.
+function limiterCurve(points = 2049) {
+  const knee = 0.8;
+  const room = 0.19;
+  const curve = new Float32Array(points);
+  for (let i = 0; i < points; i += 1) {
+    const x = (i / (points - 1)) * 2 - 1;
+    const a = Math.abs(x);
+    const y = a <= knee ? a : knee + room * Math.tanh((a - knee) / room);
+    curve[i] = Math.sign(x) * y;
+  }
+  return curve;
+}
 
 // Crossfader (-1 = A, 1 = B) → gain for a channel assigned to A, B or THRU.
 // A constant-power-ish curve: both sides full in the middle.
@@ -112,6 +146,9 @@ function gainNode(ctx, value) {
 function createChannel(ctx, masterBus, cueBus) {
   const input = ctx.createGain();
   const trim = ctx.createGain();
+  const comp = ctx.createGain(); // the COMP knob's compressor gain
+  const compSense = ctx.createAnalyser();
+  compSense.fftSize = 512;
   const eqLow = biquad(ctx, 'lowshelf', 100);
   const eqLoMid = biquad(ctx, 'peaking', 400, 0.8);
   const eqHiMid = biquad(ctx, 'peaking', 2500, 0.8);
@@ -132,13 +169,14 @@ function createChannel(ctx, masterBus, cueBus) {
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 512;
 
-  chain(input, trim, eqLow, eqLoMid, eqHiMid, eqHi, lpf, hpf, preFader, fader, fxDry, xfade, masterBus);
+  chain(input, trim, comp, eqLow, eqLoMid, eqHiMid, eqHi, lpf, hpf, preFader, fader, fxDry, xfade, masterBus);
   fader.connect(fxSend);
   fxReturn.connect(xfade);
   hpf.connect(send);
   sendToChannel.connect(preFader);
   sendToMaster.connect(masterBus);
   hpf.connect(analyser);
+  trim.connect(compSense);
   hpf.connect(cuePost);
   trim.connect(cuePre);
   cuePost.connect(cueBus);
@@ -149,6 +187,10 @@ function createChannel(ctx, masterBus, cueBus) {
   return {
     input,
     trim,
+    comp,
+    compSense,
+    compAmount: 0,
+    compReduction: 0,
     eqLow,
     eqLoMid,
     eqHiMid,
@@ -305,16 +347,40 @@ function createEngine(ctx) {
   const masterDry = ctx.createGain();
   const masterFxSend = gainNode(ctx, 0);
   const masterFxReturn = gainNode(ctx, 0);
-  chain(masterBus, masterDry, isoLow, isoMid, isoHi, masterLevel, masterAnalyser);
+  const limiter = ctx.createWaveShaper();
+  limiter.curve = limiterCurve();
+  chain(masterBus, masterDry, isoLow, isoMid, isoHi, masterLevel, limiter, masterAnalyser);
   masterBus.connect(masterFxSend);
   masterFxReturn.connect(isoLow);
-  masterLevel.connect(hpMaster);
+  limiter.connect(hpMaster);
   chain(cueBus, hpCue, cuePan, hpLevel);
   chain(hpMaster, masterPan, hpLevel);
   hpLevel.connect(ctx.destination);
 
   const channels = Array.from({ length: MIXER_CHANNELS }, () => createChannel(ctx, masterBus, cueBus));
   const scratch = new Float32Array(512);
+
+  // The channel compressors follow the level from JS, about 30 times a
+  // second, while any COMP knob is up.
+  let compTimer = null;
+  const tickComp = () => {
+    let active = false;
+    channels.forEach((node) => {
+      if (node.compAmount <= 0) return;
+      active = true;
+      node.compSense.getFloatTimeDomainData(scratch);
+      let sum = 0;
+      for (let k = 0; k < scratch.length; k += 1) sum += scratch[k] * scratch[k];
+      const levelDb = 20 * Math.log10(Math.sqrt(sum / scratch.length) + 1e-6);
+      const r = compGainDb(levelDb, node.compAmount, node.compReduction);
+      node.compReduction = r.reductionDb;
+      set(node.comp.gain, dbToGain(r.gainDb), ctx);
+    });
+    if (!active) {
+      clearInterval(compTimer);
+      compTimer = null;
+    }
+  };
 
   // The decks' cables, and a selector gain from each cable into each channel.
   const deckOuts = DECK_IDS.map(() => ctx.createGain());
@@ -371,7 +437,14 @@ function createEngine(ctx) {
         set(node.hpf.frequency, hp, ctx);
         set(node.lpf.Q, lp < 21000 ? q : 0.7, ctx);
         set(node.hpf.Q, hp > 11 ? q : 0.7, ctx);
-        set(node.fader.gain, faderToGain(ch.fader), ctx);
+        set(node.fader.gain, faderToGain(ch.fader, master.faderCurve), ctx);
+        node.compAmount = ch.comp ?? 0;
+        if (node.compAmount <= 0) {
+          node.compReduction = 0;
+          set(node.comp.gain, 1, ctx);
+        } else if (!compTimer) {
+          compTimer = setInterval(tickComp, 30);
+        }
         set(node.xfade.gain, crossfaderGain(ch.assign, crossfader), ctx);
         set(node.cuePost.gain, ch.cue && !headphones.preEq ? 1 : 0, ctx);
         set(node.cuePre.gain, ch.cue && headphones.preEq ? 1 : 0, ctx);

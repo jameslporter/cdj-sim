@@ -36,7 +36,17 @@ function channelGain(channel, crossfader) {
 export default function useMixerState({ deckASignal, deckBSignal }) {
   const [channels, setChannels] = useState(() => Array.from({ length: MIXER_CHANNELS }, (_, i) => makeChannel(i)));
   const [crossfader, setCrossfader] = useState(0);
-  const [master, setMaster] = useState({ level: 0.75, booth: 0.5, isolatorOn: false, isoHi: 0.5, isoMid: 0.5, isoLow: 0.5 });
+  const [master, setMaster] = useState({
+    level: 0.75,
+    booth: 0.5,
+    boothHi: 0.5,
+    boothLow: 0.5,
+    isolatorOn: false,
+    isoHi: 0.5,
+    isoMid: 0.5,
+    isoLow: 0.5,
+    faderCurve: 2, // CH FADER CURVE, set on the touch display
+  });
   const [mic1, setMic1] = useState({ mode: 'off', level: 0.5, eqHi: 0.5, eqLow: 0.5 });
   const [mic2, setMic2] = useState({ mode: 'off', level: 0.5, eqHi: 0.5, eqLow: 0.5 });
   // FILTER section: which side of each channel's FILTER knob is active

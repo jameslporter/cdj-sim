@@ -416,6 +416,7 @@ export const LEARN_CONTENT = {
     title: 'COMP',
     what: 'A one-knob compressor that evens out loud and quiet parts, making the channel sound denser and punchier.',
     how: 'A DJM-V10 feature for tightening up older or quieter recordings. Use a little: too much squashes the music.',
+    tip: 'Turn COMP up on a playing channel and listen as the quiet parts come up and the sound gets denser and punchier.',
   },
   'ch-cue': {
     title: 'CUE (HEADPHONES)',
@@ -558,11 +559,24 @@ export const LEARN_CONTENT = {
     title: 'MASTER LEVEL',
     what: 'The overall volume going to the main speakers.',
     how: 'Set it so the master meter peaks below the red. Turn up the venue\'s amps, not the mixer, if it needs to be louder.',
+    tip: 'Like the real V10 (PEAK LIMITER on by default), the sim softly limits the master instead of clipping, but pushing into the limiter still flattens the sound.',
   },
   'master-booth': {
     title: 'BOOTH',
     what: 'The volume of the DJ booth monitor speakers, separate from the main speakers.',
     how: 'DJs set the booth loud enough to hear the mix clearly over the room, but not so loud it masks the headphones.',
+  },
+  'master-booth-eq': {
+    title: 'BOOTH EQ HI / LOW',
+    what: 'Tone controls for the booth monitors only (HI around 3 kHz, LOW around 300 Hz, each −12 to +6 dB). The main speakers are not affected.',
+    how: 'Booths are often boomy. Taking some LOW out of the monitors keeps the kick clear without changing what the crowd hears.',
+    tip: 'The sim plays you the headphones, so you won\'t hear the booth output here.',
+  },
+  'fader-curve': {
+    title: 'CH FADER CURVE',
+    what: 'The touch display key that sets how the channel faders respond. Curve 1 stays quiet until near the top, curve 2 rises gradually, curve 3 rises evenly.',
+    how: 'Curve 1 suits quick cuts and scratch-style mixing; curves 2 and 3 suit long blends where you ride the fader slowly.',
+    tip: 'Tap the key to cycle the curves, then move a fader halfway and listen to the difference.',
   },
   'master-isolator-on': {
     title: 'ISOLATOR ON/OFF',
@@ -674,6 +688,7 @@ const ALIASES = [
   [/^filter-(onoff|bpm-.*|key-.*)$/, 'filter'],
   [/^jog-display$/, 'jog-wheel'],
   [/^master-iso-(hi|mid|low)$/, 'master-iso'],
+  [/^master-booth-(hi|low)$/, 'master-booth-eq'],
 ];
 
 // Map a control's testID (e.g. "deckB-hotcue-C", "mixer-ch2-eq-low") to its
