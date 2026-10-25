@@ -2,9 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { clamp } from '../utils/format';
 
 const INPUT_OPTIONS = ['DIGITAL', 'LINE', 'PHONO', 'MULTI I/O'];
-export const BEAT_FX_NAMES = ['ECHO', 'DELAY', 'SPIRAL', 'REVERB', 'FLANGER', 'FILTER', 'TRANS', 'ROLL'];
+export { BEAT_FX_NAMES } from '../utils/beatFx';
 export const BEAT_FX_ASSIGNS = ['CH1', 'CH2', 'MASTER'];
-export const SEND_SOURCES = ['BUILT-IN', 'EXT1', 'EXT2'];
 
 function makeChannel(index) {
   return {
@@ -14,6 +13,7 @@ function makeChannel(index) {
     eqLoMid: 0.5,
     eqLow: 0.5,
     comp: 0,
+    send: 0,
     filter: 0.5,
     fader: 0.85,
     assign: index === 0 ? 'A' : 'B',
@@ -44,16 +44,29 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
   // HEADPHONES section. The device's one output plays the headphones, so
   // MIXING starts at MASTER: you hear the mix until you turn it toward CUE.
   const [headphones, setHeadphones] = useState({ mixing: 1, level: 0.75, split: false, preEq: false });
+  // SEND FX: the built-in effect (or EXT1/EXT2), its knobs, and MASTER MIX.
+  // How much each channel sends is that channel's SEND knob.
   const [sendFx, setSendFx] = useState({
-    source: 'BUILT-IN',
+    source: 'SHORT DELAY',
     size: 0.5,
     time: 0.5,
     tone: 0.5,
-    send: 0.5,
     masterMixLevel: 0.5,
     masterMixOn: false,
   });
-  const [beatFx, setBeatFx] = useState({ assign: 'CH1', on: false, effectIndex: 0 });
+  // BEAT FX. `beats` remembers the BEAT value picked for each effect; `time`
+  // is a TIME knob override in ms (or %), cleared by the BEAT buttons.
+  const [beatFx, setBeatFx] = useState({
+    assign: 'CH1',
+    on: false,
+    effect: 'ECHO',
+    beats: {},
+    time: null,
+    depth: 0.5,
+    bands: { low: true, mid: true, hi: true },
+    bpmMode: 'AUTO',
+    tapBpm: null,
+  });
 
   // useCallback with an empty dep array (all use the functional setState
   // form, so they never need to close over current state) keeps these

@@ -40,6 +40,7 @@ function MixerChannelStrip({
   const handleEqHiMidChange = useCallback((v) => onUpdateChannel(index, { eqHiMid: v }), [onUpdateChannel, index]);
   const handleEqLoMidChange = useCallback((v) => onUpdateChannel(index, { eqLoMid: v }), [onUpdateChannel, index]);
   const handleEqLowChange = useCallback((v) => onUpdateChannel(index, { eqLow: v }), [onUpdateChannel, index]);
+  const handleSendChange = useCallback((v) => onUpdateChannel(index, { send: v }), [onUpdateChannel, index]);
   const handleCompChange = useCallback((v) => onUpdateChannel(index, { comp: v }), [onUpdateChannel, index]);
   const handleFilterChange = useCallback((v) => onUpdateChannel(index, { filter: v }), [onUpdateChannel, index]);
   const handleFaderChange = useCallback((v) => onUpdateChannel(index, { fader: v }), [onUpdateChannel, index]);
@@ -81,6 +82,14 @@ function MixerChannelStrip({
         size={44}
       />
       <Knob testID={`${idPrefix}eq-low`} label="LOW" value={channel.eqLow} bipolar onChange={handleEqLowChange} size={44} />
+      <Knob
+        testID={`${idPrefix}send`}
+        label="SEND"
+        value={channel.send ?? 0}
+        onChange={handleSendChange}
+        size={40}
+        color={colors.blue}
+      />
       <Knob testID={`${idPrefix}comp`} label="COMP" value={channel.comp} onChange={handleCompChange} size={40} />
       <Knob
         testID={`${idPrefix}filter`}

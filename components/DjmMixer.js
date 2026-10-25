@@ -18,7 +18,7 @@ const engine = getMixerEngine();
 const CHANNEL_PEAKS = engine ? [0, 1].map((i) => () => engine.channelPeak(i)) : null;
 const MASTER_PEAK = engine ? () => engine.masterPeak() : null;
 
-export default function DjmMixer({ mixer }) {
+export default function DjmMixer({ mixer, beatFxBpm }) {
   // Stable wrappers around the (always-stable) useState setters. Without
   // these, every section below would get a brand-new onChange prop on every
   // DjmMixer render — including ones triggered by unrelated state like the
@@ -71,8 +71,9 @@ export default function DjmMixer({ mixer }) {
             onChange={handleChangeMaster}
           />
           <MixerHeadphonesSection headphones={mixer.headphones} onChange={handleChangeHeadphones} />
-          <MixerBeatFxSection beatFx={mixer.beatFx} onChange={handleChangeBeatFx} />
         </View>
+
+        <MixerBeatFxSection beatFx={mixer.beatFx} bpm={beatFxBpm} onChange={handleChangeBeatFx} />
       </ScrollView>
     </View>
   );

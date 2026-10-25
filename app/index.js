@@ -10,6 +10,16 @@ import useMixerState from '../hooks/useMixerState';
 import useTrackLibrary from '../hooks/useTrackLibrary';
 import { clamp } from '../utils/format';
 import { getMixerEngine } from '../utils/mixerEngine';
+import { beatFxInfo } from '../utils/beatFx';
+
+// Bring a BPM into the V10's 70–180 BPM measuring range.
+function foldBpm(bpm) {
+  if (!bpm || !Number.isFinite(bpm)) return null;
+  let b = bpm;
+  while (b < 70) b *= 2;
+  while (b > 180) b /= 2;
+  return Math.round(b * 10) / 10;
+}
 
 export default function CdjSimulator() {
   const library = useTrackLibrary();
@@ -89,11 +99,23 @@ export default function CdjSimulator() {
   // EQ, FILTER, faders, crossfader, ISOLATOR and the headphone cue for real.
   // In Expo Go only the overall channel volume can be applied.
   const engine = getMixerEngine();
-  const { channels, crossfader, filter, headphones } = mixer;
+  const { channels, crossfader, filter, headphones, sendFx, beatFx } = mixer;
   const mixerMaster = mixer.master;
   useEffect(() => {
-    if (engine) engine.apply({ channels, crossfader, master: mixerMaster, filter, headphones });
-  }, [engine, channels, crossfader, mixerMaster, filter, headphones]);
+    if (engine) engine.apply({ channels, crossfader, master: mixerMaster, filter, headphones, sendFx });
+  }, [engine, channels, crossfader, mixerMaster, filter, headphones, sendFx]);
+
+  // BEAT FX tempo. In AUTO the V10 measures the BPM of the sound it's
+  // assigned to (70–180 BPM); here that's the deck on that channel, or the
+  // master deck for MASTER. TAP uses the tapped tempo.
+  const autoBpmSource =
+    beatFx.assign === 'CH1' ? deckA : beatFx.assign === 'CH2' ? deckB : (masterDeck ?? (deckB.isPlaying && !deckA.isPlaying ? deckB : deckA));
+  const beatFxBpm = beatFx.bpmMode === 'TAP' && beatFx.tapBpm ? beatFx.tapBpm : foldBpm(autoBpmSource.displayedBpm);
+  useEffect(() => {
+    if (!engine) return;
+    const beat = beatFx.beats[beatFx.effect] ?? beatFxInfo(beatFx.effect).defaultBeat;
+    engine.applyBeatFx({ ...beatFx, beat }, beatFxBpm);
+  }, [engine, beatFx, beatFxBpm]);
 
   useEffect(() => {
     deckA.setVolume(engine ? 1 : clamp(mixer.channelGains[0] * (0.3 + 1.1 * mixer.master.level), 0, 1));
@@ -114,7 +136,7 @@ export default function CdjSimulator() {
         contentContainerStyle={styles.horizontalContainer}
       >
         <CdjDeck deck={deckA} sync={syncProps('A')} library={library} label="DECK A" idPrefix="deckA-" />
-        <DjmMixer mixer={mixer} />
+        <DjmMixer mixer={mixer} beatFxBpm={beatFxBpm} />
         <CdjDeck deck={deckB} sync={syncProps('B')} library={library} label="DECK B" idPrefix="deckB-" />
       </ScrollView>
       <LearningPanel />

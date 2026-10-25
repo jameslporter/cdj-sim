@@ -476,40 +476,43 @@ export const LEARN_CONTENT = {
   },
 
   // ── Mixer: send FX ────────────────────────────────────────────────────
-  'sendfx-source': {
-    title: 'SEND / RETURN (INT / EXT1 / EXT2)',
-    what: 'Chooses where the send effect comes from: the mixer\'s built-in effects (INT) or an external effects unit plugged into EXT1 or EXT2.',
-    how: 'Some DJs bring their own effects pedal or sampler and plug it in here.',
+  'sendfx-type': {
+    title: 'SEND (SHORT DELAY / LONG DELAY / DUB ECHO / REVERB / EXT1 / EXT2)',
+    what: 'Picks the send effect: one of the V10\'s four built-in effects, or an external effects unit plugged into EXT1 or EXT2.',
+    how: 'Unlike BEAT FX, the send effect can run on several channels at once: each channel\'s SEND knob sets how much goes in. DUB ECHO and REVERB are favourites for throwing a vocal or the end of a phrase into space.',
+    tip: 'Pick DUB ECHO, play a deck and turn up that channel\'s SEND knob for a beat, then back down. The echoes keep going.',
+    note: 'No external unit is plugged in here, so EXT1 and EXT2 are silent.',
   },
   'sendfx-size': {
-    title: 'SEND FX SIZE / FEEDBACK',
-    what: 'Sets the size of the reverb space or the feedback of a delay.',
-    how: 'Bigger sizes give long washes, useful for ending a track or covering a transition.',
+    title: 'SIZE/FEEDBACK',
+    what: 'For the delays, how many times the echo repeats (feedback). For REVERB, the size of the room.',
+    how: 'High feedback gives long, building echoes. Pull it back before they pile up into noise.',
   },
   'sendfx-time': {
-    title: 'SEND FX TIME',
-    what: 'Sets the delay or reverb time.',
-    how: 'Set delays to a musical time so echoes land on the beat.',
+    title: 'TIME',
+    what: 'The delay time (SHORT DELAY 20–400 ms, LONG DELAY and DUB ECHO up to 1.5 s), or how long the reverb lasts.',
+    how: 'The send effect doesn\'t follow the BPM like BEAT FX, so DJs set TIME by ear until the echoes sit on the groove.',
   },
   'sendfx-tone': {
-    title: 'SEND FX TONE',
-    what: 'Filters the effect\'s sound, darker or brighter.',
-    how: 'Darken a reverb so it doesn\'t fight the music\'s highs.',
+    title: 'TONE',
+    what: 'A filter on the effect sound only. Left makes it darker, right makes it thinner. The middle leaves it as it is.',
+    how: 'Thin out a reverb so its low end doesn\'t muddy the kick, or darken a dub echo so each repeat sinks into the mix.',
   },
-  'sendfx-send': {
-    title: 'SEND LEVEL',
-    what: 'How much of the channel goes into the send effect.',
-    how: 'Ride it up on the last beat of a phrase to send a vocal off into a long echo.',
+  'ch-send': {
+    title: 'SEND',
+    what: 'How much of this channel goes into the SEND effect. The effect sound comes back in on the same channel, so the channel fader controls it too.',
+    how: 'Ride it up on the last word of a vocal or the last beat of a phrase, then back down, to throw just that moment into the effect.',
+    tip: 'Turn MASTER MIX on if you want the effect to keep sounding after you pull the fader down.',
   },
   'sendfx-masterlevel': {
-    title: 'SEND FX MIX LEVEL',
-    what: 'The volume of the effect coming back into the mix.',
-    how: 'Balance how loud the effect sounds against the dry music.',
+    title: 'MASTER MIX LEVEL',
+    what: 'The volume of the send effect sound going straight to the master while MASTER MIX is on.',
+    how: 'Balance how loud the effect sounds against the music.',
   },
   'sendfx-mastermix': {
     title: 'MASTER MIX',
-    what: 'Sends the whole master output through the send effect, not just one channel.',
-    how: 'Put a reverb or echo over everything for a big ending or breakdown.',
+    what: 'Routes the send effect sound of every channel straight to the master output, instead of back through each channel.',
+    how: 'With MASTER MIX on, the effect\'s tail keeps playing even after you close the channel fader: send the outgoing track into a long echo, then pull its fader down.',
   },
 
   // ── Mixer: master ─────────────────────────────────────────────────────
@@ -542,18 +545,60 @@ export const LEARN_CONTENT = {
   // ── Mixer: beat FX ────────────────────────────────────────────────────
   'beatfx-effect': {
     title: 'BEAT FX SELECT',
-    what: 'Picks the Beat FX effect: echo, delay, spiral, reverb, flanger, filter, trans, roll and more. They sync to the BPM automatically.',
-    how: 'Choose an effect before you need it so it\'s ready on the right beat.',
+    what: 'Picks one of the V10\'s 14 Beat FX: DELAY, ECHO, PING PONG, SPIRAL, HELIX, REVERB, SHIMMER, FLANGER, PHASER, FILTER, TRANS, ROLL, PITCH and VINYL BRAKE. Their timing follows the BPM.',
+    how: 'Choose an effect before you need it so it\'s ready on the right beat. ECHO on the outgoing track is the classic way to end a mix.',
   },
   'beatfx-assign': {
     title: 'BEAT FX ASSIGN',
-    what: 'Chooses which channel the Beat FX applies to, or the master output.',
-    how: 'Usually the outgoing track, for example an echo-out on the last phrase.',
+    what: 'Chooses where the Beat FX goes: a channel, or the master output.',
+    how: 'Usually the outgoing track, for example an echo-out on its last phrase. On a channel the effect comes after the fader, so echoes keep sounding when you pull the fader down.',
   },
   'beatfx-onoff': {
     title: 'BEAT FX ON/OFF',
-    what: 'Turns the selected Beat FX on or off.',
-    how: 'Tap it on the beat for an effect that lands in time, then off before it gets messy.',
+    what: 'Turns the Beat FX on or off. It flashes while the effect is on.',
+    how: 'Tap it on the beat. Delay, echo and reverb types leave their tail ringing out after you turn them off.',
+  },
+  'beatfx-beat': {
+    title: 'BEAT ◀ ▶',
+    what: 'Sets the effect time in beats (1/16 up to 16 or 64 beats). For REVERB and SHIMMER it sets the amount, and for PITCH the pitch change.',
+    how: 'Shorter beats for tight stutters and rolls, longer ones for slow sweeps. A 3/4 beat echo is a favourite for echo-outs.',
+  },
+  'beatfx-xpad': {
+    title: 'X-PAD',
+    what: 'Touch a beat value on the display to switch to it and turn the effect on while you hold it.',
+    how: 'Great for ROLL and TRANS: hold 1/2, then 1/4, then 1/8 for a build-up, and let go on the drop.',
+    tip: 'Pick ROLL, play a deck, and hold the X-PAD values from left to right.',
+  },
+  'beatfx-display': {
+    title: 'BEAT FX DISPLAY',
+    what: 'Shows the effect, the channel it\'s on, the BPM it\'s following (AUTO or TAP), the BEAT value and the effect time.',
+    how: 'Glance at the BPM before you hit ON: if AUTO hasn\'t locked to the track, echoes will drift.',
+  },
+  'beatfx-autotap': {
+    title: 'AUTO / TAP',
+    what: 'AUTO measures the BPM of the channel the effect is on (70–180 BPM). TAP uses a tempo you tap in instead.',
+    how: 'Use TAP when AUTO can\'t read the beat, for example over a beatless intro.',
+    note: 'The sim\'s AUTO reads the BPM from the deck on that channel.',
+  },
+  'beatfx-tap': {
+    title: 'TAP',
+    what: 'Tap along with the beat to set the Beat FX tempo by hand. It switches to TAP mode.',
+    how: 'Tap four or more times on the kick drum.',
+  },
+  'beatfx-freq': {
+    title: 'FX FREQUENCY (HI / MID / LOW)',
+    what: 'Picks which frequency bands get the effect. Unlit bands play through untouched.',
+    how: 'Turn LOW off so an echo or reverb doesn\'t smear the bass, keeping the kick clean.',
+  },
+  'beatfx-time': {
+    title: 'TIME',
+    what: 'Sets the effect time by hand in milliseconds (or %), instead of in beats. The BEAT buttons switch back to beat timing.',
+    how: 'For off-grid textures, or when there\'s no steady beat to sync to.',
+  },
+  'beatfx-depth': {
+    title: 'LEVEL/DEPTH',
+    what: 'How much effect you hear. Fully left is just the original sound. For most effects it\'s the balance between original and effect, and for some (TRANS, FLANGER, VINYL BRAKE) it\'s how strong the effect is.',
+    how: 'Bring it up gradually through a build, rather than slamming the effect in at full.',
   },
 };
 
@@ -582,7 +627,9 @@ const ALIASES = [
   [/^track-search-(back|forward)$/, 'track-search'],
   [/^search-(back|forward)$/, 'search'],
   [/^direction(-.*)?$/, 'direction'],
-  [/^(ch-assign|mic-mode|filter-mode|sendfx-source)(-.*)?$/, '$1'],
+  [/^(ch-assign|mic-mode|filter-mode|sendfx-type|beatfx-xpad|beatfx-freq)(-.*)?$/, '$1'],
+  [/^beatfx-effect-(prev|next)$/, 'beatfx-effect'],
+  [/^beatfx-beat-(up|down)$/, 'beatfx-beat'],
   [/^master-iso-(hi|mid|low)$/, 'master-iso'],
 ];
 
