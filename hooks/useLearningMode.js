@@ -11,7 +11,8 @@ import { loadJSON, saveJSON } from '../utils/storage';
 
 const STORAGE_KEY = 'cdj-sim:learning-mode:v1';
 
-let state = { enabled: false, selectedId: null, hoverId: null };
+// `drillTargets`: controls the current guided drill step points at.
+let state = { enabled: false, selectedId: null, hoverId: null, drillTargets: [] };
 const listeners = new Set();
 
 function setState(patch) {
@@ -27,7 +28,7 @@ function subscribe(listener) {
 export const learningMode = {
   getState: () => state,
   setEnabled(enabled) {
-    setState({ enabled, selectedId: null, hoverId: null });
+    setState({ enabled, selectedId: null, hoverId: null, drillTargets: [] });
     saveJSON(STORAGE_KEY, enabled);
   },
   toggle() {
@@ -44,6 +45,9 @@ export const learningMode = {
   },
   clear() {
     setState({ selectedId: null, hoverId: null });
+  },
+  setDrillTargets(ids) {
+    setState({ drillTargets: ids ?? [] });
   },
   // Restore the last on/off choice (AsyncStorage: app storage on iOS/Android,
   // localStorage on web).
@@ -72,6 +76,14 @@ const highlightStyle = {
   outlineOffset: 2,
 };
 
+// A drill step's "use this control" marker.
+const drillStyle = {
+  outlineWidth: 3,
+  outlineStyle: 'solid',
+  outlineColor: '#ffb238',
+  outlineOffset: 3,
+};
+
 // Hook for a control that learning mode can explain.
 //
 // Touching it (finger or mouse) selects it through the responder *capture*
@@ -87,6 +99,7 @@ const highlightStyle = {
 export function useLearnTarget(id) {
   const known = !!id && learnKeyFor(id) != null;
   const highlighted = useLearningMode((s) => known && shownLearnId(s) === id);
+  const drillTarget = useLearningMode((s) => known && s.enabled && s.drillTargets.includes(id));
 
   return useMemo(() => {
     if (!known) return NO_LEARN;
@@ -117,6 +130,6 @@ export function useLearnTarget(id) {
         },
       };
     };
-    return { props, style: highlighted ? highlightStyle : null, withHandlers };
-  }, [id, known, highlighted]);
+    return { props, style: highlighted ? highlightStyle : drillTarget ? drillStyle : null, withHandlers };
+  }, [id, known, highlighted, drillTarget]);
 }

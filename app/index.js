@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -163,6 +163,14 @@ export default function CdjSimulator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine, mixer.deckGains.B, mixer.master.level]);
 
+  // What the guided drills check: both decks, the mixer and the audio engine.
+  const mixerRef = useRef(mixer);
+  mixerRef.current = mixer;
+  const getDrillState = useCallback(
+    () => ({ A: decksRef.current.A, B: decksRef.current.B, mixer: mixerRef.current, engine }),
+    [engine]
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
@@ -175,7 +183,7 @@ export default function CdjSimulator() {
         <DjmMixer mixer={mixer} beatFxBpm={beatFxBpm} />
         <CdjDeck deck={deckB} sync={syncProps('B')} library={library} label="DECK B" idPrefix="deckB-" onAir={onAir[1]} deckSettings={settingsB} />
       </ScrollView>
-      <LearningPanel />
+      <LearningPanel getDrillState={getDrillState} />
     </SafeAreaView>
   );
 }
