@@ -53,6 +53,7 @@ export const LEARN_CONTENT = {
   'screen-menu': {
     title: 'MENU / UTILITY',
     what: 'Returns the screen to the main playback view. Holding it opens UTILITY, the player\'s settings menu.',
+    tip: 'Hold MENU to open UTILITY.',
     how: 'DJs tap it to get back to the waveform after browsing. UTILITY is where you change settings like the jog display or quantize beat value.',
   },
   'screen-back': {
@@ -82,7 +83,13 @@ export const LEARN_CONTENT = {
     title: 'SHORTCUT',
     what: 'Opens a shortcut screen with quick settings like quantize beat value, beat jump size and phase meter display.',
     how: 'Lets you change common settings mid-set without digging into UTILITY.',
-    note: 'Not simulated yet.',
+    tip: 'Press SHORTCUT, then touch a row (or turn and push the rotary) to change it. Press SHORTCUT again to close it.',
+  },
+  utility: {
+    title: 'UTILITY SETTINGS',
+    what: 'The player\'s settings. In the sim: PLAY MODE, LOAD LOCK, QUANTIZE BEAT VALUE, AUTO CUE LEVEL, SLIP FLASHING, ON AIR DISPLAY, JOG RING INDICATOR, HOT CUE COLOR and PLAYER No. Each player remembers its own.',
+    how: 'At a venue, check UTILITY if a deck behaves oddly: the last DJ may have left LOAD LOCK on, or PLAY MODE on CONTINUE so the next track starts by itself.',
+    note: 'The real UTILITY menu has more settings (screen brightness, language, link and display options).',
   },
   rotary: {
     title: 'ROTARY SELECTOR',
@@ -662,6 +669,7 @@ const ALIASES = [
   [/^beatfx-beat-(up|down)$/, 'beatfx-beat'],
   [/^key-(up|down)$/, 'key-shift'],
   [/^search-key(-.*)?$/, 'search-key'],
+  [/^utility-.*$/, 'utility'],
   [/^filter-(onoff|bpm-.*|key-.*)$/, 'filter'],
   [/^jog-display$/, 'jog-wheel'],
   [/^master-iso-(hi|mid|low)$/, 'master-iso'],

@@ -11,6 +11,7 @@ import useTouchPreview from './useTouchPreview';
 import useTrackHotCues from './useTrackHotCues';
 import useTrackMemoryCues, { getTrackMemoryCues } from './useTrackMemoryCues';
 import { keySyncShift, parseKey, shiftKeyText } from '../utils/musicKey';
+import { DEFAULT_SETTINGS, quantizeBeats } from '../constants/utilitySettings';
 
 const EMPTY_LOOP = { active: false, start: null, end: null };
 const AUTO_CUE_KEY = 'cdj-sim:auto-cue:v1';
@@ -24,11 +25,18 @@ const TRACK_RESTART_SECONDS = 1;
 // AUTO CUE LEVEL (MEMORY), that's its first memory cue if it has one, else
 // just before its first sound (from the analysed waveform), else its first
 // beat, else 0:00.
-export function autoCueTime(track, memoryCues = []) {
-  if (memoryCues.length) return memoryCues[0].time;
+//
+// UTILITY's AUTO CUE LEVEL can instead ask for the first sound louder than a
+// level (-36 to -78 dB), ignoring memory cues.
+export function autoCueTime(track, memoryCues = [], level = 'MEMORY') {
+  const db = parseInt(level, 10);
+  const byLevel = Number.isFinite(db);
+  if (!byLevel && memoryCues.length) return memoryCues[0].time;
+  // The peaks are relative loudness, calibrated so -36 dB ≈ AUTO_CUE_THRESHOLD.
+  const threshold = byLevel ? AUTO_CUE_THRESHOLD * 10 ** ((db + 36) / 20) : AUTO_CUE_THRESHOLD;
   const peaks = track?.peaks;
   if (peaks?.length && track.duration > 0) {
-    const first = peaks.findIndex((p) => p >= AUTO_CUE_THRESHOLD);
+    const first = peaks.findIndex((p) => p >= threshold);
     if (first > 0) return Math.max(0, (first / peaks.length) * track.duration - 0.02);
   }
   return track?.firstBeat || 0;
@@ -65,6 +73,7 @@ export default function useCdjDeck({
   getMasterBeatPos = null,
   syncKey = null,
   channel = 0,
+  settings = DEFAULT_SETTINGS,
 } = {}) {
   const [track, setTrack] = useState(DEMO_TRACKS[0]);
   const [audioSource, setAudioSource] = useState(DEMO_TRACKS[0].file);
@@ -183,7 +192,7 @@ export default function useCdjDeck({
   // Snap to a track's beat grid (by default the loaded track's).
   const quantizeTime = (t, forTrack = track) => {
     if (!quantize || !forTrack.bpm) return t;
-    const beat = 60 / forTrack.bpm;
+    const beat = (60 / forTrack.bpm) * quantizeBeats(settings.quantizeBeat);
     const first = forTrack.firstBeat || 0;
     return Math.max(0, Math.round((t - first) / beat) * beat + first);
   };
@@ -267,12 +276,15 @@ export default function useCdjDeck({
     }
   }, [elapsed, loop, player]);
 
-  // Detect natural end-of-track (the player stops itself; sync our isPlaying state).
+  // Detect natural end-of-track (the player stops itself; sync our isPlaying
+  // state). With PLAY MODE set to CONTINUE the next track loads and plays.
+  const continueRef = useRef(null);
   useEffect(() => {
-    if (isPlaying && !status.playing && duration > 0 && elapsed >= duration - 0.15) {
+    if (isPlaying && !status.playing && duration > 0 && elapsed >= duration - 0.15 && !reverse) {
       setIsPlaying(false);
+      continueRef.current?.();
     }
-  }, [isPlaying, status.playing, elapsed, duration]);
+  }, [isPlaying, status.playing, elapsed, duration, reverse]);
 
   const resetDeckState = () => {
     jog.cancel();
@@ -679,7 +691,7 @@ export default function useCdjDeck({
     setAudioSource(source);
     setIsPlaying(false);
     cueHoldRef.current = null;
-    const cue = autoCue ? autoCueTime(nextTrack, getTrackMemoryCues(nextTrack.id)) : 0;
+    const cue = autoCue ? autoCueTime(nextTrack, getTrackMemoryCues(nextTrack.id), settings.autoCueLevel) : 0;
     const start = at ?? cue;
     setCuePoint(cue);
     setPendingStart({ source, time: start, play });
@@ -702,6 +714,14 @@ export default function useCdjDeck({
     const next = current < 0 ? 0 : (current + direction + tracks.length) % tracks.length;
     handleLoadTrack(tracks[next], { play: isPlaying });
   };
+
+  continueRef.current =
+    settings.playMode === 'CONTINUE' && tracks.length > 1
+      ? () => {
+          const current = tracks.findIndex((t) => t.id === track.id);
+          if (current >= 0 && current < tracks.length - 1) handleLoadTrack(tracks[current + 1], { play: true });
+        }
+      : null;
 
   // MEMORY / CUE·LOOP CALL / DELETE: a second, separate cue-point system from
   // the 8 Hot Cue pads — memory cues are auto-numbered in track order and

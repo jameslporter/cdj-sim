@@ -4,7 +4,7 @@ import DeckButton from './DeckButton';
 const SCREENS = ['SOURCE', 'BROWSE', 'TAG LIST', 'PLAYLIST', 'SEARCH'];
 
 // The column of screen buttons down the left side of the CDJ-3000X display.
-export default function ScreenNavRow({ activeScreen, onSelect, onMenu, idPrefix = '' }) {
+export default function ScreenNavRow({ activeScreen, onSelect, onMenu, onUtility, idPrefix = '' }) {
   return (
     <View style={styles.column}>
       {SCREENS.map((screen) => (
@@ -22,7 +22,10 @@ export default function ScreenNavRow({ activeScreen, onSelect, onMenu, idPrefix 
         testID={`${idPrefix}screen-menu`}
         label="MENU"
         sublabel="UTILITY"
+        active={activeScreen === 'UTILITY'}
         onPress={onMenu}
+        onLongPress={onUtility}
+        delayLongPress={600}
         style={styles.button}
         labelStyle={styles.label}
       />

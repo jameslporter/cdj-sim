@@ -69,12 +69,13 @@ export default function DeckModeControls({
   onToggleSlip,
   onSlipReverse,
   onToggleVinylMode,
+  slipFlashing = true,
   idPrefix = '',
 }) {
   const direction = slipReverseHeld ? 'SLIP_REV' : reverse ? 'REV' : 'FWD';
   // SLIP's light flashes while a slip action is running (the deck's
   // SLIP FLASHING setting).
-  const flash = useBlink(slipping, 250);
+  const flash = useBlink(slipping && slipFlashing, 250);
 
   return (
     <View style={styles.wrap}>

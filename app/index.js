@@ -8,6 +8,7 @@ import LearningPanel from '../components/LearningPanel';
 import useCdjDeck from '../hooks/useCdjDeck';
 import useMixerState from '../hooks/useMixerState';
 import useTrackLibrary from '../hooks/useTrackLibrary';
+import useDeckSettings from '../hooks/useDeckSettings';
 import { clamp } from '../utils/format';
 import { crossfaderGain, getMixerEngine } from '../utils/mixerEngine';
 import { beatFxInfo } from '../utils/beatFx';
@@ -37,9 +38,12 @@ export default function CdjSimulator() {
   const [deckKeys, setDeckKeys] = useState({ A: null, B: null });
   const syncKeyFor = (id) => (master && master !== id ? deckKeys[master] : null);
 
+  const settingsA = useDeckSettings('A');
+  const settingsB = useDeckSettings('B');
+
   // Deck A is plugged into mixer channel 1, deck B into channel 2.
-  const deckA = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('A'), getMasterBeatPos, syncKey: syncKeyFor('A'), channel: 0 });
-  const deckB = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('B'), getMasterBeatPos, syncKey: syncKeyFor('B'), channel: 1 });
+  const deckA = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('A'), getMasterBeatPos, syncKey: syncKeyFor('A'), channel: 0, settings: settingsA.settings });
+  const deckB = useCdjDeck({ tracks: library.allTracks, syncBpm: syncBpmFor('B'), getMasterBeatPos, syncKey: syncKeyFor('B'), channel: 1, settings: settingsB.settings });
   decksRef.current = { A: deckA, B: deckB };
   if (__DEV__) globalThis.__cdjDecks = decksRef.current; // for poking at from the console
 
@@ -159,9 +163,9 @@ export default function CdjSimulator() {
         style={styles.horizontalScroll}
         contentContainerStyle={styles.horizontalContainer}
       >
-        <CdjDeck deck={deckA} sync={syncProps('A')} library={library} label="DECK A" idPrefix="deckA-" onAir={onAir[0]} />
+        <CdjDeck deck={deckA} sync={syncProps('A')} library={library} label="DECK A" idPrefix="deckA-" onAir={onAir[0]} deckSettings={settingsA} />
         <DjmMixer mixer={mixer} beatFxBpm={beatFxBpm} />
-        <CdjDeck deck={deckB} sync={syncProps('B')} library={library} label="DECK B" idPrefix="deckB-" onAir={onAir[1]} />
+        <CdjDeck deck={deckB} sync={syncProps('B')} library={library} label="DECK B" idPrefix="deckB-" onAir={onAir[1]} deckSettings={settingsB} />
       </ScrollView>
       <LearningPanel />
     </SafeAreaView>

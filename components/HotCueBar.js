@@ -4,7 +4,7 @@ import HotCuePad from './HotCuePad';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
-export default function HotCueBar({ cues, onPress, onPressIn, onPressOut, idPrefix = '' }) {
+export default function HotCueBar({ cues, onPress, onPressIn, onPressOut, colorful = true, idPrefix = '' }) {
   return (
     <View style={styles.row}>
       {LABELS.map((label, i) => (
@@ -12,8 +12,9 @@ export default function HotCueBar({ cues, onPress, onPressIn, onPressOut, idPref
           key={label}
           label={label}
           set={Boolean(cues[i])}
-          // Hot cue loops light orange, like the deck with HOT CUE COLOR off.
-          color={cues[i]?.loopEnd != null ? cdj.ledOrange : hotCueColors[i]}
+          // Hot cue loops light orange. With UTILITY's HOT CUE COLOR off,
+          // hot cues all light green.
+          color={cues[i]?.loopEnd != null ? cdj.ledOrange : colorful ? hotCueColors[i] : cdj.ledGreen}
           onPress={() => onPress(i)}
           onPressIn={onPressIn ? () => onPressIn(i) : undefined}
           onPressOut={onPressOut ? () => onPressOut(i) : undefined}
