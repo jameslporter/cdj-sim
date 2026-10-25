@@ -24,6 +24,7 @@ export default function TrackDisplay({
   getPosition,
   getMasterBeatPos,
   memoryCues,
+  slipRatio,
   tempoReset,
   autoCue,
   beatJumpCount,
@@ -159,6 +160,8 @@ export default function TrackDisplay({
           progressRatio={progressRatio}
           loopRange={loopRange}
           hotCues={hotCues}
+          memoryCues={memoryCues}
+          slipRatio={slipRatio}
           duration={duration}
           previewRatio={previewRatio}
           onTouchStart={onOverviewTouchStart}

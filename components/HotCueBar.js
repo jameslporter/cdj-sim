@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { hotCueColors } from '../constants/theme';
+import { cdj, hotCueColors } from '../constants/theme';
 import HotCuePad from './HotCuePad';
 
 const LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -12,7 +12,8 @@ export default function HotCueBar({ cues, onPress, onPressIn, onPressOut, idPref
           key={label}
           label={label}
           set={Boolean(cues[i])}
-          color={hotCueColors[i]}
+          // Hot cue loops light orange, like the deck with HOT CUE COLOR off.
+          color={cues[i]?.loopEnd != null ? cdj.ledOrange : hotCueColors[i]}
           onPress={() => onPress(i)}
           onPressIn={onPressIn ? () => onPressIn(i) : undefined}
           onPressOut={onPressOut ? () => onPressOut(i) : undefined}

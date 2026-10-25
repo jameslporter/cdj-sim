@@ -43,6 +43,8 @@ export class EnginePlayer {
     this.rate = 1;
     this.correctPitch = false;
     this.loopRange = null;
+    this.reverse = false;
+    this.reversedBuffer = null; // made the first time DIRECTION is reversed
     this.voice = null; // { source, gain }
     this.pos = 0; // position when the clock below was last set
     this.posAt = 0; // context time it was set
@@ -74,6 +76,7 @@ export class EnginePlayer {
   // Raw position on the track, following the rate changes and the loop.
   get currentTime() {
     if (!this.playing || !this.voice) return this.pos;
+    if (this.reverse) return Math.max(0, this.pos - (this.ctx.currentTime - this.posAt) * this.rate);
     let t = this.pos + (this.ctx.currentTime - this.posAt) * this.rate;
     const loop = this.loopRange;
     if (loop && this.pos < loop.end && t >= loop.end) {
@@ -98,13 +101,28 @@ export class EnginePlayer {
     this.posAt = this.ctx.currentTime;
   }
 
+  // The track backward, for reverse playback: same length, samples flipped.
+  getReversedBuffer() {
+    if (!this.reversedBuffer) {
+      const b = this.buffer;
+      const rev = this.ctx.createBuffer(b.numberOfChannels, b.length, b.sampleRate);
+      for (let c = 0; c < b.numberOfChannels; c += 1) {
+        const data = new Float32Array(b.getChannelData(c));
+        data.reverse();
+        rev.copyToChannel(data, c);
+      }
+      this.reversedBuffer = rev;
+    }
+    return this.reversedBuffer;
+  }
+
   startVoice() {
     if (!this.buffer || this.voice) return;
     const ctx = this.ctx;
     const source = this.correctPitch ? ctx.createBufferSource({ pitchCorrection: true }) : ctx.createBufferSource();
-    source.buffer = this.buffer;
+    source.buffer = this.reverse ? this.getReversedBuffer() : this.buffer;
     source.playbackRate.value = this.rate;
-    if (this.loopRange) {
+    if (this.loopRange && !this.reverse) {
       source.loop = true;
       source.loopStart = this.loopRange.start;
       source.loopEnd = this.loopRange.end;
@@ -115,7 +133,8 @@ export class EnginePlayer {
     gain.connect(this.output);
     const now = ctx.currentTime;
     gain.gain.setTargetAtTime(1, now, FADE / 3);
-    source.start(now, Math.min(this.pos, Math.max(0, this.duration - 0.01)));
+    const offset = this.reverse ? this.duration - this.pos : this.pos;
+    source.start(now, Math.min(Math.max(0, offset), Math.max(0, this.duration - 0.01)));
     this.posAt = now;
     this.voice = { source, gain };
   }
@@ -182,6 +201,17 @@ export class EnginePlayer {
     }
   }
 
+  /** Play backward (DIRECTION REV) or forward. */
+  setReverse(on) {
+    if (on === this.reverse) return;
+    this.mark();
+    this.reverse = on;
+    if (this.voice) {
+      this.stopVoice();
+      this.startVoice();
+    }
+  }
+
   /** Loop between `start` and `end` (seconds) without a gap, or null to stop looping. */
   setLoop(range) {
     const same =
@@ -190,7 +220,7 @@ export class EnginePlayer {
     if (same) return;
     this.mark();
     this.loopRange = range && range.end > range.start ? { start: range.start, end: range.end } : null;
-    if (this.voice) {
+    if (this.voice && !this.reverse) {
       const src = this.voice.source;
       if (this.loopRange) {
         src.loopStart = this.loopRange.start;
@@ -206,8 +236,11 @@ export class EnginePlayer {
   startTicking() {
     if (this.timer) return;
     this.timer = setInterval(() => {
-      if (this.playing && this.duration && !this.loopRange && this.currentTime >= this.duration - 0.005) {
-        this.pos = this.duration;
+      const atEnd = this.reverse
+        ? this.currentTime <= 0.005
+        : !this.loopRange && this.currentTime >= this.duration - 0.005;
+      if (this.playing && this.duration && atEnd) {
+        this.pos = this.reverse ? 0 : this.duration;
         this.playing = false;
         this.stopVoice();
         this.stopTicking();

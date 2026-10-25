@@ -22,6 +22,8 @@ export default function TouchWaveform({
   hotCues,
   duration,
   previewRatio,
+  memoryCues,
+  slipRatio,
   barCount,
   onTouchStart,
   onTouchMove,
@@ -92,6 +94,18 @@ export default function TouchWaveform({
             ) : null
           )
         : null}
+      {memoryCues && duration
+        ? memoryCues.map((cue, i) => (
+            <View
+              key={`m${i}`}
+              pointerEvents="none"
+              style={[styles.memoryMarker, { left: `${(cue.time / duration) * 100}%` }]}
+            />
+          ))
+        : null}
+      {slipRatio != null ? (
+        <View pointerEvents="none" style={[styles.slipHead, { left: `${clamp(slipRatio, 0, 1) * 100}%` }]} />
+      ) : null}
       {previewRatio != null ? (
         <View pointerEvents="none" style={[styles.previewHead, { left: `${clamp(previewRatio, 0, 1) * 100}%` }]} />
       ) : null}
@@ -112,6 +126,28 @@ const styles = StyleSheet.create({
     height: 4,
     marginLeft: -1,
     borderRadius: 1,
+  },
+  memoryMarker: {
+    position: 'absolute',
+    bottom: -2,
+    width: 0,
+    height: 0,
+    marginLeft: -3,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderBottomWidth: 5,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#ff3b30',
+  },
+  // Where the track would be with SLIP (it carries on from here).
+  slipHead: {
+    position: 'absolute',
+    top: -2,
+    bottom: -2,
+    width: 2,
+    marginLeft: -1,
+    backgroundColor: cdj.ledBlue,
   },
   previewHead: {
     position: 'absolute',

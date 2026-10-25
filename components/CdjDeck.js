@@ -309,6 +309,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                       getPosition={deck.getPosition}
                       getMasterBeatPos={sync.getMasterBeatPos}
                       memoryCues={deck.memoryCues}
+                      slipRatio={deck.slipping ? (deck.slipPosition() ?? 0) / deck.duration : null}
                       tempoReset={deck.tempoReset}
                       autoCue={deck.autoCue}
                       beatJumpCount={deck.beatJumpCount}
@@ -416,6 +417,7 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                 onFourBeat={() => deck.handleLoopButton(4)}
                 onEightBeat={() => deck.handleLoopButton(8)}
                 onReloopExit={deck.handleReloopExit}
+                adjust={deck.loopAdjust}
                 idPrefix={idPrefix}
               />
               <BeatJumpControls
@@ -432,8 +434,10 @@ export default function CdjDeck({ deck, sync, library, label, idPrefix }) {
                   slip={deck.slip}
                   vinylMode={deck.vinylMode}
                   setReverse={deck.setReverse}
-                  setSlip={deck.setSlip}
-                  onToggleSlip={() => deck.setSlip((s) => !s)}
+                  onToggleSlip={deck.toggleSlip}
+                  slipping={deck.slipping}
+                  slipReverseHeld={deck.slipReverseHeld}
+                  onSlipReverse={deck.handleSlipReverse}
                   onToggleVinylMode={() => deck.setVinylMode((v) => !v)}
                   idPrefix={idPrefix}
                 />

@@ -39,10 +39,13 @@ export default function useJogEngine({
   vinylSpeedAdjust,
   volumeRef,
   getOutput = null,
+  onAdjust = null,
 }) {
   const [scratching, setScratching] = useState(false);
   const [displayPos, setDisplayPos] = useState(0);
   const voiceRef = useRef(null);
+  const adjustRef = useRef(onAdjust);
+  adjustRef.current = onAdjust;
   const outputRef = useRef(getOutput);
   outputRef.current = getOutput;
   if (!voiceRef.current) voiceRef.current = createScratchVoice(() => outputRef.current?.() ?? null);
@@ -195,7 +198,7 @@ export default function useJogEngine({
     s.touch = zone;
     voice.resume();
     // VINYL: touching the top holds the record, playing or not.
-    if (zone === 'top' && props.current.vinylMode) enterScratch();
+    if (zone === 'top' && props.current.vinylMode && !adjustRef.current) enterScratch();
     wake();
   };
 
@@ -205,6 +208,11 @@ export default function useJogEngine({
   };
 
   const move = (revs, zone) => {
+    // LOOP IN/OUT ADJUST: the jog fine-tunes the loop point instead.
+    if (adjustRef.current) {
+      adjustRef.current(revs);
+      return;
+    }
     s.pending += revs;
     s.lastMoveAt = now();
     const { isPlaying: playing, vinylMode: vinyl } = props.current;

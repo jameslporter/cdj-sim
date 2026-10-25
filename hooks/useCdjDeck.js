@@ -9,6 +9,7 @@ import useJogEngine from './useJogEngine';
 import { getMixerEngine } from '../utils/mixerEngine';
 import useTouchPreview from './useTouchPreview';
 import useTrackHotCues from './useTrackHotCues';
+import useTrackMemoryCues, { getTrackMemoryCues } from './useTrackMemoryCues';
 
 const EMPTY_LOOP = { active: false, start: null, end: null };
 const AUTO_CUE_KEY = 'cdj-sim:auto-cue:v1';
@@ -18,9 +19,12 @@ const AUTO_CUE_THRESHOLD = 0.04;
 // |◀◀ goes to the start of the track if you're more than this far in.
 const TRACK_RESTART_SECONDS = 1;
 
-// Auto Cue: where a track should park when it loads — just before its first
-// sound (from the analysed waveform), else its first beat, else 0:00.
-export function autoCueTime(track) {
+// Auto Cue: where a track should park when it loads. Like the CDJ's default
+// AUTO CUE LEVEL (MEMORY), that's its first memory cue if it has one, else
+// just before its first sound (from the analysed waveform), else its first
+// beat, else 0:00.
+export function autoCueTime(track, memoryCues = []) {
+  if (memoryCues.length) return memoryCues[0].time;
   const peaks = track?.peaks;
   if (peaks?.length && track.duration > 0) {
     const first = peaks.findIndex((p) => p >= AUTO_CUE_THRESHOLD);
@@ -59,7 +63,6 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   const [loadError, setLoadError] = useState(null);
   const loadSeq = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [phantomElapsed, setPhantomElapsed] = useState(0);
   const [cuePoint, setCuePoint] = useState(0);
   const [pitch, setPitch] = useState(0);
   const [pitchRange, setPitchRange] = useState(6);
@@ -83,8 +86,16 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   // A seek (and maybe play) waiting for a newly loaded track's player.
   const [pendingStart, setPendingStart] = useState(null);
   const [quantize, setQuantize] = useState(true);
-  const [memoryCues, setMemoryCues] = useState([]);
   const [memoryCueIndex, setMemoryCueIndex] = useState(-1);
+  // LOOP IN/OUT ADJUST: which loop point the jog is moving, if any.
+  const [loopAdjust, setLoopAdjust] = useState(null); // 'in' | 'out' | null
+  // SLIP: where the track would have been, while a slip action runs:
+  // { pos, at (ms), rate }.
+  const slipRef = useRef(null);
+  const [slipping, setSlipping] = useState(false);
+  // The hot cue pad held during slip playback.
+  const slipPadRef = useRef(null);
+  const [slipReverseHeld, setSlipReverseHeld] = useState(false);
   const [gateCue, setGateCue] = useState(false);
   // The hot cue pad currently held for gate playback: { index, time, keepPlaying }.
   const gateRef = useRef(null);
@@ -98,6 +109,10 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   const trackHotCues = useTrackHotCues();
   const hotCues = trackHotCues.get(track.id);
   const setHotCues = (update) => trackHotCues.set(track.id, update);
+  // Memory cues are saved with the track too.
+  const trackMemoryCues = useTrackMemoryCues();
+  const memoryCues = trackMemoryCues.get(track.id);
+  const setMemoryCues = (update) => trackMemoryCues.set(track.id, update);
 
   const { player, status, routedThroughMixer } = useDeckPlayer(audioSource, channel);
 
@@ -124,6 +139,8 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     volumeRef,
     // Scratch sound goes through the same mixer channel as the deck.
     getOutput: routedThroughMixer ? () => getMixerEngine()?.channelInput(channel) : null,
+    // LOOP IN/OUT ADJUST: the jog moves the loop point instead of the track.
+    onAdjust: loopAdjust ? (revs) => adjustLoopPoint(revs) : null,
   });
   // While the jog is driving the audio, the position comes from the platter.
   const elapsed = jog.position ?? status.currentTime ?? 0;
@@ -233,21 +250,10 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     }
   }, [isPlaying, status.playing, elapsed, duration]);
 
-  // Phantom clock for SLIP mode: a virtual, uninterrupted timeline that keeps
-  // advancing regardless of seeks/loops, so slip can restore "where you'd be".
-  useEffect(() => {
-    if (!isPlaying) return undefined;
-    const id = setInterval(() => {
-      setPhantomElapsed((prev) => clamp(prev + 0.1 * rate, 0, duration));
-    }, 100);
-    return () => clearInterval(id);
-  }, [isPlaying, rate, duration]);
-
   const resetDeckState = () => {
     jog.cancel();
     setIsPlaying(false);
     player.seekTo(0).catch(() => {});
-    setPhantomElapsed(0);
     setCuePoint(0);
     setLoop(EMPTY_LOOP);
   };
@@ -267,13 +273,11 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     if (!isPlaying && synced) {
       const aligned = phaseAlignedTime(getPosition());
       player.seekTo(aligned).catch(() => {});
-      setPhantomElapsed(aligned);
     }
     // Pausing leaves the cue point where it is, as on the real deck.
     setIsPlaying((prev) => {
       if (!prev && elapsed >= duration) {
         player.seekTo(0).catch(() => {});
-        setPhantomElapsed(0);
       }
       return !prev;
     });
@@ -281,7 +285,24 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
 
   const seekTo = (time) => {
     player.seekTo(time).catch(() => {});
-    setPhantomElapsed(time);
+  };
+
+  // SLIP: start remembering where the track would be (only while playing).
+  const startSlip = (force = false) => {
+    if ((!slip && !force) || !isPlaying || slipRef.current) return;
+    slipRef.current = { pos: getPosition(), at: Date.now(), rate: audioRate };
+    setSlipping(true);
+  };
+  const slipPosition = () => {
+    const sl = slipRef.current;
+    return sl ? clamp(sl.pos + ((Date.now() - sl.at) / 1000) * sl.rate, 0, duration) : null;
+  };
+  // …and jump back there when the slip action ends.
+  const endSlip = () => {
+    const t = slipPosition();
+    slipRef.current = null;
+    setSlipping(false);
+    if (t != null) seekTo(t);
   };
 
   // Paused at (or within a frame of) the cue point?
@@ -321,14 +342,12 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   const handleSeek = (deltaSeconds) => {
     const next = clamp(elapsed + deltaSeconds, 0, duration);
     player.seekTo(next).catch(() => {});
-    setPhantomElapsed(next);
   };
 
   // Needle search: touching the overview waveform while paused jumps there.
   const handleNeedleSearch = (time) => {
     const next = clamp(time, 0, duration);
     player.seekTo(next).catch(() => {});
-    setPhantomElapsed(next);
   };
 
   // Hot cue pads fire on press-in first. Two 3000X features act here:
@@ -368,21 +387,41 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     const cue = hotCues[i];
     if (gateCue && cue && !isPlaying) {
       player.seekTo(cue.time).catch(() => {});
-      setPhantomElapsed(cue.time);
       setIsPlaying(true);
       gateRef.current = { index: i, time: cue.time, keepPlaying: false };
+      padHandledRef.current = true;
+      return;
+    }
+    // SLIP: a hot cue plays only while the pad is held; letting go returns
+    // the track to where it would have been.
+    if (slip && cue && isPlaying) {
+      startSlip();
+      slipPadRef.current = i;
+      triggerHotCue(cue);
       padHandledRef.current = true;
     }
   };
 
+  // Jump to a hot cue (and start its loop, for a hot cue loop) and play.
+  const triggerHotCue = (cue) => {
+    seekTo(cue.time);
+    if (cue.loopEnd != null) setLoop({ active: true, start: cue.time, end: cue.loopEnd });
+    setIsPlaying(true);
+  };
+
   const handleHotCuePressOut = (i) => {
+    if (slipPadRef.current === i) {
+      slipPadRef.current = null;
+      setLoop((prev) => (prev.active ? { ...prev, active: false } : prev));
+      endSlip();
+      return;
+    }
     const gate = gateRef.current;
     if (!gate || gate.index !== i) return;
     gateRef.current = null;
     if (!gate.keepPlaying) {
       setIsPlaying(false);
       player.seekTo(gate.time).catch(() => {});
-      setPhantomElapsed(gate.time);
     }
   };
 
@@ -393,13 +432,12 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     }
     const cue = hotCues[i];
     if (cue) {
-      if (slip) return;
-      player.seekTo(cue.time).catch(() => {});
-      setPhantomElapsed(cue.time);
-      setIsPlaying(true);
+      triggerHotCue(cue);
     } else {
+      // An empty pad stores a cue here, or the loop that's playing (a hot
+      // cue loop).
       const next = [...hotCues];
-      next[i] = { time: quantizeTime(elapsed) };
+      next[i] = loop.active ? { time: loop.start, loopEnd: loop.end } : { time: quantizeTime(elapsed) };
       setHotCues(next);
     }
   };
@@ -429,6 +467,7 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   };
 
   const handleLoopButton = (size) => {
+    if (!loop.active) startSlip();
     setLoop((prev) => {
       if (!prev.active) {
         const start = quantizeTime(elapsed);
@@ -443,47 +482,109 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   };
 
   // LOOP IN/CUE also sets the cue point, so it's how you set a cue on the
-  // fly while playing.
+  // fly while playing. While a loop plays it toggles IN ADJUST instead: the
+  // jog then moves the loop's start.
   const handleLoopIn = () => {
+    if (loop.active) {
+      setLoopAdjust((a) => (a === 'in' ? null : 'in'));
+      return;
+    }
+    setLoopAdjust(null);
     const start = quantizeTime(elapsed);
     if (!isPlaying) seekTo(start);
     setCuePoint(start);
     setLoop({ active: false, start, end: null });
   };
 
+  // LOOP OUT closes the loop and starts it; while a loop plays it toggles
+  // OUT ADJUST (the jog moves the loop's end).
   const handleLoopOut = () => {
+    if (loop.active) {
+      setLoopAdjust((a) => (a === 'out' ? null : 'out'));
+      return;
+    }
+    if (loop.start == null || elapsed <= loop.start) return;
+    startSlip();
+    setLoop({ active: true, start: loop.start, end: quantizeTime(elapsed) });
+  };
+
+  // Turning the jog in IN/OUT ADJUST: half a beat per turn, so it's fine.
+  const adjustLoopPoint = (revs) => {
+    const delta = revs * beatDuration * 0.5;
     setLoop((prev) => {
-      if (prev.start == null || elapsed <= prev.start) return prev;
-      return { active: true, start: prev.start, end: quantizeTime(elapsed) };
+      if (!prev.active) return prev;
+      if (loopAdjust === 'in') return { ...prev, start: clamp(prev.start + delta, 0, prev.end - 0.05) };
+      return { ...prev, end: clamp(prev.end + delta, prev.start + 0.05, duration) };
     });
   };
 
   const handleReloopExit = () => {
-    setLoop((prev) => {
-      if (prev.active) {
-        if (slip) {
-          player.seekTo(phantomElapsed).catch(() => {});
-        }
-        return { ...prev, active: false };
-      }
-      if (prev.start != null) {
-        player.seekTo(prev.start).catch(() => {});
-        setPhantomElapsed(prev.start);
-        return { ...prev, active: true };
-      }
-      return prev;
-    });
+    setLoopAdjust(null);
+    if (loop.active) {
+      setLoop((prev) => ({ ...prev, active: false }));
+      // SLIP: carry on from where the track would have been.
+      endSlip();
+      return;
+    }
+    if (loop.start != null && loop.end != null) {
+      seekTo(loop.start);
+      startSlip();
+      setLoop((prev) => ({ ...prev, active: true }));
+    }
   };
 
   const handleSetBeatJumpCount = (count) => {
     if (BEAT_JUMP_COUNTS.includes(count)) setBeatJumpCount(count);
   };
 
+  // DIRECTION: the mixer-routed player can really play backward. With SLIP
+  // on, going back to forward picks up where the track would have been.
+  useEffect(() => {
+    player.setReverse?.(reverse);
+  }, [reverse, player]);
+
+  const handleSetReverse = (on) => {
+    if (on === reverse) return;
+    if (on) startSlip();
+    setReverse(on);
+    if (!on) endSlip();
+  };
+
+  // SLIP REV is spring-loaded: reverse while held, then carry on from where
+  // the track would have been (whether SLIP is on or not).
+  const handleSlipReverse = (held) => {
+    setSlipReverseHeld(held);
+    if (held) {
+      startSlip(true);
+      setReverse(true);
+    } else {
+      setReverse(false);
+      endSlip();
+    }
+  };
+
+  // SLIP + VINYL scratch: holding the platter is a slip action too.
+  const scratchSlipRef = useRef(false);
+  useEffect(() => {
+    if (jog.scratching && slip && isPlaying) {
+      scratchSlipRef.current = true;
+      startSlip();
+    } else if (!jog.scratching && scratchSlipRef.current) {
+      scratchSlipRef.current = false;
+      endSlip();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jog.scratching]);
+
+  // Loop sizes change through 1/2X and 2X; a stopped loop ends adjust mode.
+  useEffect(() => {
+    if (!loop.active) setLoopAdjust(null);
+  }, [loop.active]);
+
   const handleBeatJump = (dir) => {
     const delta = dir * beatJumpCount * beatDuration;
     const next = clamp(elapsed + delta, 0, duration);
     player.seekTo(next).catch(() => {});
-    setPhantomElapsed(next);
   };
 
   const handleCycleRange = () => {
@@ -516,14 +617,15 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     setAudioSource(source);
     setIsPlaying(false);
     cueHoldRef.current = null;
-    const cue = autoCue ? autoCueTime(nextTrack) : 0;
+    const cue = autoCue ? autoCueTime(nextTrack, getTrackMemoryCues(nextTrack.id)) : 0;
     const start = at ?? cue;
-    setPhantomElapsed(start);
     setCuePoint(cue);
     setPendingStart({ source, time: start, play });
     setLoop(EMPTY_LOOP);
-    setMemoryCues([]);
     setMemoryCueIndex(-1);
+    slipRef.current = null;
+    setSlipping(false);
+    setLoopAdjust(null);
   };
 
   // TRACK SEARCH: |◀◀ first goes back to the start of this track, then to
@@ -542,21 +644,32 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
   // MEMORY / CUE·LOOP CALL / DELETE: a second, separate cue-point system from
   // the 8 Hot Cue pads — memory cues are auto-numbered in track order and
   // stepped through with CUE/LOOP CALL rather than pressed directly.
+  // MEMORY saves a memory cue here (with the track, so it comes back next
+  // time). Like the CDJ, it also becomes the cue point.
   const handleMemorySave = () => {
     const time = quantizeTime(elapsed);
-    setMemoryCues((prev) => {
-      const next = [...prev, { time }].sort((a, b) => a.time - b.time);
-      setMemoryCueIndex(next.findIndex((c) => c.time === time));
-      return next;
-    });
+    if (memoryCues.some((c) => Math.abs(c.time - time) < 0.01)) return;
+    const next = [...memoryCues, { time }].sort((a, b) => a.time - b.time);
+    setMemoryCues(next);
+    setMemoryCueIndex(next.findIndex((c) => c.time === time));
+    setCuePoint(time);
   };
 
+  // CUE/LOOP CALL ◀ ▶: the previous or next memory cue from where the track
+  // is, which becomes the cue point. Playing stops there, as on the deck.
   const handleMemoryCall = (dir) => {
     if (memoryCues.length === 0) return;
-    const nextIndex = clamp(memoryCueIndex + dir, 0, memoryCues.length - 1);
-    setMemoryCueIndex(nextIndex);
-    player.seekTo(memoryCues[nextIndex].time).catch(() => {});
-    setPhantomElapsed(memoryCues[nextIndex].time);
+    const here = elapsed;
+    let index;
+    if (dir > 0) index = memoryCues.findIndex((c) => c.time > here + 0.05);
+    else index = memoryCues.map((c) => c.time < here - 0.05).lastIndexOf(true);
+    if (index < 0) return;
+    const time = memoryCues[index].time;
+    setMemoryCueIndex(index);
+    jog.cancel();
+    setIsPlaying(false);
+    setCuePoint(time);
+    seekTo(time);
   };
 
   const handleMemoryDelete = () => {
@@ -595,7 +708,6 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     alignToMaster: () => {
       const aligned = phaseAlignedTime(getPosition());
       player.seekTo(aligned).catch(() => {});
-      setPhantomElapsed(aligned);
     },
     tempoReset,
     autoCue,
@@ -606,6 +718,10 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     masterTempo,
     reverse,
     slip,
+    slipping,
+    slipPosition,
+    slipReverseHeld,
+    loopAdjust,
     vinylMode,
     isJogHeld,
     vinylSpeedAdjust,
@@ -627,7 +743,16 @@ export default function useCdjDeck({ tracks = DEMO_TRACKS, syncBpm = null, getMa
     setTimeMode,
     setVinylSpeedAdjust,
     setJogAdjust,
-    setReverse,
+    setReverse: handleSetReverse,
+    toggleSlip: () => {
+      // Turning SLIP off mid-action leaves the track where it is.
+      if (slip) {
+        slipRef.current = null;
+        setSlipping(false);
+      }
+      setSlip(!slip);
+    },
+    handleSlipReverse,
     setSlip,
     setVinylMode,
     setMasterTempo,

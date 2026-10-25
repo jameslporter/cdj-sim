@@ -157,12 +157,12 @@ export const LEARN_CONTENT = {
   },
   'memory-save': {
     title: 'MEMORY',
-    what: 'Saves the current position as a memory cue. Memory cues show on the overview waveform but aren\'t on pads.',
+    what: 'Saves the current position as a memory cue, saved with the track so it\'s there next time. Memory cues show as red triangles on the waveforms but aren\'t on pads. With Auto Cue on, a track loads at its first memory cue.',
     how: 'DJs mark useful spots like the first beat, the breakdown and the outro while preparing tracks, then step through them during a set.',
   },
   'memory-call': {
     title: 'CUE/LOOP CALL ◀ ▶',
-    what: 'Jumps to the previous or next memory cue (or saved loop) in the track.',
+    what: 'Jumps to the previous or next memory cue from where the track is, and waits there paused with it as the cue point.',
     how: 'A fast way to get to a pre-marked mix-in point without searching.',
   },
   'memory-delete': {
@@ -173,18 +173,18 @@ export const LEARN_CONTENT = {
   },
   hotcue: {
     title: 'HOT CUE A–H',
-    what: 'Eight pads that each store a point in the track. Press an empty pad to save the current position; press a lit pad to jump there and play instantly. To delete one, hold DELETE and press the pad.',
+    what: 'Eight pads that each store a point in the track. Press an empty pad to save the current position (or, while a loop plays, the loop: it lights orange); press a lit pad to jump there and play instantly. To delete one, hold DELETE and press the pad.',
     how: 'DJs set hot cues on drops, vocals and breakdowns to jump around the track, remix live or start a mix from exactly the right beat. Hot cues stay with the track and come back every time it\'s loaded.',
     tip: 'Play a track, tap pad A to save a cue, then tap it again to jump back.',
   },
   'loop-in': {
     title: 'LOOP IN / CUE',
-    what: 'Sets the start of a loop at the current position, and sets the cue point there too. Once a loop exists, it adjusts the loop\'s start.',
+    what: 'Sets the start of a loop at the current position, and sets the cue point there too. While a loop plays, it switches to IN ADJUST (the button blinks): turn the jog to move the loop\'s start, and press it again to finish.',
     how: 'Press IN at the start of a phrase, then OUT a few beats later to loop it. It\'s also how you set a new cue point without stopping the track.',
   },
   'loop-out': {
     title: 'LOOP OUT',
-    what: 'Sets the end of the loop at the current position and starts looping. While looping, it adjusts the loop\'s end.',
+    what: 'Sets the end of the loop at the current position and starts looping. While a loop plays, it switches to OUT ADJUST (the button blinks): turn the jog to move the loop\'s end, and press it again to finish.',
     how: 'Use it right after LOOP IN for a manual loop of any length.',
   },
   'loop-reloop-exit': {
@@ -235,15 +235,15 @@ export const LEARN_CONTENT = {
   },
   'mode-slip': {
     title: 'SLIP',
-    what: 'While SLIP is on, the track keeps counting in the background during loops, scratches, hot cues and reverse. When you let go, it picks up where it would have been.',
+    what: 'While SLIP is on, the track keeps counting in the background during loops, scratches, hot cues and reverse. When you let go, it picks up where it would have been. The button flashes while a slip action is running, and a blue line on the overview waveform shows where the track will come back in.',
     how: 'DJs use it for loops, stutters and scratches that never knock the track out of time with the mix.',
-    tip: 'Turn on SLIP, start a 4-beat loop, wait, then EXIT: the track jumps ahead to where it would have been.',
+    tip: 'Turn on SLIP, start a 4-beat loop, wait, then EXIT: the track jumps ahead to where it would have been. With SLIP on, hot cues only play while you hold the pad.',
   },
   direction: {
     title: 'DIRECTION (FWD / REV / SLIP REV)',
-    what: 'Plays the track forward or in reverse. SLIP REV plays backward only while held, then carries on as if it had never reversed.',
+    what: 'Plays the track forward or in reverse. FWD and REV stay where you put them. SLIP REV is spring-loaded: it plays backward only while held, then carries on as if it had never reversed.',
     how: 'A quick reverse "rewind" effect, often on a vocal or the last beat before a drop.',
-    note: 'The browser can\'t play audio backward, so reverse only changes the display here.',
+    note: 'Reverse needs the mixer audio engine (web or a dev build). In Expo Go it only changes the display.',
   },
   'jog-wheel': {
     title: 'JOG WHEEL',
