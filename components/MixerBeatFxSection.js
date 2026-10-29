@@ -1,6 +1,5 @@
 import { memo, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { BEAT_FX_ASSIGNS } from '../hooks/useMixerState';
 import useBlink from '../hooks/useBlink';
 import { colors } from '../constants/theme';
 import { BEAT_FX, beatFxInfo, formatBeat } from '../utils/beatFx';
@@ -12,7 +11,8 @@ import Knob from './Knob';
 
 // The DJM-V10's BEAT FX section: the touch display (effect, BPM, BEAT value,
 // time, X-PAD), BEAT ◀ ▶, AUTO/TAP and TAP, FX FREQUENCY, the BEAT FX SELECT
-// switch, the channel assign, TIME, LEVEL/DEPTH and ON/OFF.
+// switch, TIME, LEVEL/DEPTH and ON/OFF. Where the effect goes is set with the
+// BEAT FX ASSIGN buttons on each channel and the MIC section.
 
 // TIME knob position (0–1) ↔ the effect's TIME range: a log scale for
 // milliseconds, linear for percentages.
@@ -59,10 +59,8 @@ function MixerBeatFxSection({ beatFx, bpm, onChange, faderCurve = 2, onChangeMas
     const i = BEAT_FX.findIndex((fx) => fx.name === info.name);
     onChange({ effect: BEAT_FX[(i + dir + BEAT_FX.length) % BEAT_FX.length].name, time: null });
   };
-  const cycleAssign = () => {
-    const next = BEAT_FX_ASSIGNS[(BEAT_FX_ASSIGNS.indexOf(beatFx.assign) + 1) % BEAT_FX_ASSIGNS.length];
-    onChange({ assign: next });
-  };
+  // The display shows the lit BEAT FX ASSIGN buttons, e.g. "CH3 CH4".
+  const assignText = beatFx.assigns.length ? beatFx.assigns.join(' ') : '--';
   const toggleBand = (band) => onChange({ bands: { ...beatFx.bands, [band]: !beatFx.bands[band] } });
 
   // TAP: the average of the last few taps sets the BPM.
@@ -108,7 +106,7 @@ function MixerBeatFxSection({ beatFx, bpm, onChange, faderCurve = 2, onChangeMas
             >
               <CurveIcon curve={faderCurve} />
             </Pressable>
-            <Text style={styles.displayAssign}>{beatFx.assign}</Text>
+            <Text style={styles.displayAssign}>{assignText}</Text>
           </View>
         </View>
         <View style={styles.displayTop}>
@@ -181,7 +179,6 @@ function MixerBeatFxSection({ beatFx, bpm, onChange, faderCurve = 2, onChangeMas
           style={styles.select}
         />
         <CdjButton testID="mixer-beatfx-effect-next" label="▶" onPress={() => stepEffect(1)} style={styles.tiny} />
-        <CdjButton testID="mixer-beatfx-assign" label={beatFx.assign} sublabel="ASSIGN" onPress={cycleAssign} style={styles.small} />
       </View>
 
       <View style={styles.row}>

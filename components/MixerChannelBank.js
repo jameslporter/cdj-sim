@@ -13,6 +13,9 @@ export default function MixerChannelBank({
   onUpdateChannel,
   onCycleInput,
   onToggleCue,
+  beatFxAssigns = [],
+  beatFxOn = false,
+  onToggleBeatFxAssign,
   onCrossfaderChange,
 }) {
   return (
@@ -32,6 +35,9 @@ export default function MixerChannelBank({
             onUpdateChannel={onUpdateChannel}
             onCycleInput={onCycleInput}
             onToggleCue={onToggleCue}
+            fxAssigned={beatFxAssigns.includes(`CH${i + 1}`)}
+            fxOn={beatFxOn}
+            onToggleFxAssign={onToggleBeatFxAssign}
             idPrefix={`mixer-ch${i + 1}-`}
           />
         ))}

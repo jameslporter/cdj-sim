@@ -33,6 +33,9 @@ export default function DjmMixer({ mixer, beatFxBpm }) {
   const handleChangeMaster = useCallback((patch) => setMaster((m) => ({ ...m, ...patch })), [setMaster]);
   const handleChangeBeatFx = useCallback((patch) => setBeatFx((b) => ({ ...b, ...patch })), [setBeatFx]);
   const handleChangeHeadphones = useCallback((patch) => setHeadphones((h) => ({ ...h, ...patch })), [setHeadphones]);
+  const { toggleBeatFxAssign } = mixer;
+  const handleToggleChannelFx = useCallback((i) => toggleBeatFxAssign(`CH${i + 1}`), [toggleBeatFxAssign]);
+  const handleToggleMicFx = useCallback(() => toggleBeatFxAssign('MIC'), [toggleBeatFxAssign]);
 
   return (
     <View style={styles.column}>
@@ -47,6 +50,9 @@ export default function DjmMixer({ mixer, beatFxBpm }) {
             mic2={mixer.mic2}
             onChangeMic1={handleChangeMic1}
             onChangeMic2={handleChangeMic2}
+            fxAssigned={mixer.beatFx.assigns.includes('MIC')}
+            fxOn={mixer.beatFx.on}
+            onToggleFxAssign={handleToggleMicFx}
           />
           <MixerFilterSection filter={mixer.filter} onChange={handleChangeFilter} />
           <MixerSendFxSection sendFx={mixer.sendFx} onChange={handleChangeSendFx} />
@@ -62,6 +68,9 @@ export default function DjmMixer({ mixer, beatFxBpm }) {
           onUpdateChannel={mixer.updateChannel}
           onCycleInput={mixer.cycleChannelInput}
           onToggleCue={mixer.toggleChannelCue}
+          beatFxAssigns={mixer.beatFx.assigns}
+          beatFxOn={mixer.beatFx.on}
+          onToggleBeatFxAssign={handleToggleChannelFx}
           onCrossfaderChange={mixer.setCrossfader}
         />
 

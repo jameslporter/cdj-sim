@@ -387,7 +387,7 @@ export const LEARN_CONTENT = {
   // ── Mixer: channel strip ──────────────────────────────────────────────
   'ch-input': {
     title: 'INPUT SELECT',
-    what: 'Chooses what plays through this channel: DIGITAL or LINE from a CDJ, PHONO from a turntable, USB A/B from a laptop, MULTI I/O, or the EXT/BUILT-IN effects returns. The label under it shows which deck you\'ll hear.',
+    what: 'Chooses what plays through this channel: DIGITAL or LINE from a CDJ, PHONO from a turntable, USB A/B from a laptop, MULTI I/O, or the SEND effect sound: BUILT-IN brings back the built-in send effect, EXT1/EXT2 an external unit, and BUILT-IN·EXT all of them. The label under it shows which deck you\'ll hear.',
     how: 'Set once when you plug in. If a deck is silent, a wrong input selector is one of the first things to check.',
     tip: 'In this booth deck A is cabled to channel 3\'s DIGITAL input and deck B to channel 4\'s. Switch channel 3 to LINE and deck A goes silent.',
   },
@@ -500,19 +500,19 @@ export const LEARN_CONTENT = {
   // ── Mixer: filter ─────────────────────────────────────────────────────
   'filter-lpf': {
     title: 'LPF',
-    what: 'Turns on the low-pass side of every channel\'s FILTER knob. A low-pass removes the highs for a muffled, underwater sound.',
-    how: 'Turn a channel\'s FILTER knob left to sweep it in. Leave LPF off if you only ever want the knob to high-pass.',
+    what: 'Makes every channel\'s FILTER knob a low-pass filter, which removes the highs for a muffled, underwater sound. The button blinks while it\'s selected; press it again to turn the filter off.',
+    how: 'Only one filter works at a time: pressing HPF switches every channel over to the high-pass.',
   },
   'filter-hpf': {
     title: 'HPF',
-    what: 'Turns on the high-pass side of every channel\'s FILTER knob. A high-pass removes the bass for a thin, distant sound.',
-    how: 'Turn a channel\'s FILTER knob right to sweep it in. Sweeping a high-pass on the outgoing track clears room for the new one.',
+    what: 'Makes every channel\'s FILTER knob a high-pass filter, which removes the bass for a thin, distant sound. The button blinks while it\'s selected; press it again to turn the filter off.',
+    how: 'Sweeping a high-pass on the outgoing track clears room for the new one.',
   },
   'ch-filter': {
     title: 'FILTER',
-    what: 'This channel\'s filter. Centre is off. Turn left for a low-pass (muffled), right for a high-pass (thin). The LPF and HPF buttons choose which sides work, and RESONANCE sets the edge.',
-    how: 'Filters are one of the most used effects: slow sweeps over 8 or 16 bars build tension into a drop, or ease a track out of the mix.',
-    tip: 'Play a deck and turn its FILTER knob slowly to the right, then back to the middle.',
+    what: 'This channel\'s filter. Fully left is off; turn it clockwise for more. With LPF selected it closes down the highs, with HPF it thins out the bass. The FILTER section\'s LPF/HPF buttons pick the filter for all channels, and RESONANCE sets the edge.',
+    how: 'Each channel has its own knob, so you can filter several channels at once by different amounts. Slow sweeps over 8 or 16 bars build tension into a drop, or ease a track out of the mix.',
+    tip: 'Press HPF, play a deck and turn its FILTER knob slowly clockwise, then back to the left.',
   },
   'filter-resonance': {
     title: 'FILTER RESONANCE',
@@ -524,8 +524,8 @@ export const LEARN_CONTENT = {
   'sendfx-type': {
     title: 'SEND (SHORT DELAY / LONG DELAY / DUB ECHO / REVERB / EXT1 / EXT2)',
     what: 'Picks the send effect: one of the V10\'s four built-in effects, or an external effects unit plugged into EXT1 or EXT2.',
-    how: 'Unlike BEAT FX, the send effect can run on several channels at once: each channel\'s SEND knob sets how much goes in. DUB ECHO and REVERB are favourites for throwing a vocal or the end of a phrase into space.',
-    tip: 'Pick DUB ECHO, play a deck and turn up that channel\'s SEND knob for a beat, then back down. The echoes keep going.',
+    how: 'One built-in effect can be selected at a time, and EXT1/EXT2 can be on alongside it. The selected buttons blink; press a blinking one to turn it off. Every channel\'s SEND knob feeds the same effect, at its own level. To hear the effect, set a spare channel\'s input selector to BUILT-IN (it comes back on that channel) or turn on MASTER MIX.',
+    tip: 'Pick DUB ECHO and turn MASTER MIX on, play a deck and turn up that channel\'s SEND knob for a beat, then back down. The echoes keep going.',
     note: 'No external unit is plugged in here, so EXT1 and EXT2 are silent.',
   },
   'sendfx-size': {
@@ -545,9 +545,9 @@ export const LEARN_CONTENT = {
   },
   'ch-send': {
     title: 'SEND',
-    what: 'How much of this channel goes into the SEND effect. The effect sound comes back in on the same channel, so the channel fader controls it too.',
+    what: 'How much of this channel goes into the SEND effect. All channels share one effect. Its sound comes back on any channel whose input selector is on BUILT-IN, and to the master when MASTER MIX is on.',
     how: 'Ride it up on the last word of a vocal or the last beat of a phrase, then back down, to throw just that moment into the effect.',
-    tip: 'Turn MASTER MIX on if you want the effect to keep sounding after you pull the fader down.',
+    tip: 'Bringing the effect back on its own channel gives it its own EQ, FILTER and fader, so you can shape and fade the effect separately from the music.',
   },
   'sendfx-masterlevel': {
     title: 'MASTER MIX LEVEL',
@@ -556,8 +556,8 @@ export const LEARN_CONTENT = {
   },
   'sendfx-mastermix': {
     title: 'MASTER MIX',
-    what: 'Routes the send effect sound of every channel straight to the master output, instead of back through each channel.',
-    how: 'With MASTER MIX on, the effect\'s tail keeps playing even after you close the channel fader: send the outgoing track into a long echo, then pull its fader down.',
+    what: 'Routes the send effect sound straight to the master output, at MASTER MIX LEVEL. It works alongside any channel set to BUILT-IN.',
+    how: 'The quickest way to hear the send effect without giving up a channel to it.',
   },
 
   // ── Mixer: master ─────────────────────────────────────────────────────
@@ -608,8 +608,9 @@ export const LEARN_CONTENT = {
   },
   'beatfx-assign': {
     title: 'BEAT FX ASSIGN',
-    what: 'Chooses where the Beat FX goes: a channel, or the master output.',
-    how: 'Usually the outgoing track, for example an echo-out on its last phrase. On a channel the effect comes after the fader, so echoes keep sounding when you pull the fader down.',
+    what: 'Each channel, and the MIC section, has its own BEAT FX ASSIGN button. Press it to add the Beat FX to that channel; press it again to take it off. Several can be lit at once, and they blink while the effect is on.',
+    how: 'Usually the outgoing track, for example an echo-out on its last phrase. The effect comes after the channel fader, so echoes keep sounding when you pull the fader down. The V10 has no Beat FX on the master output.',
+    tip: 'You hear the effect sound in the main mix only: CUE on an assigned channel plays it without the effect.',
   },
   'beatfx-onoff': {
     title: 'BEAT FX ON/OFF',
@@ -687,6 +688,7 @@ const ALIASES = [
   [/^direction(-.*)?$/, 'direction'],
   [/^(ch-assign|mic-mode|filter-mode|sendfx-type|beatfx-xpad|beatfx-freq)(-.*)?$/, '$1'],
   [/^beatfx-effect-(prev|next)$/, 'beatfx-effect'],
+  [/^(ch|mic)-beatfx-assign$/, 'beatfx-assign'],
   [/^beatfx-beat-(up|down)$/, 'beatfx-beat'],
   [/^key-(up|down)$/, 'key-shift'],
   [/^search-key(-.*)?$/, 'search-key'],
