@@ -1,8 +1,8 @@
 import { makeImpulse } from './beatFx';
 
-// The DJM-V10's built-in SEND effects. Each channel's SEND knob feeds its own
-// copy, so the effect sound can come back into that channel (and follow its
-// fader) or, with MASTER MIX on, go straight to the master.
+// The DJM-V10's built-in SEND effects: one shared unit. Every channel's SEND
+// knob feeds it; the effect sound comes back as the input of any channel set
+// to BUILT-IN and, with MASTER MIX on, straight to the master.
 //
 //   SIZE/FEEDBACK  delay feedback, or the reverb's room size
 //   TIME           delay time, or the reverb time

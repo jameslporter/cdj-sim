@@ -1,13 +1,16 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
+import useBlink from '../hooks/useBlink';
 import CdjButton from './CdjButton';
 import Knob from './Knob';
 
-// FILTER section: LPF and HPF choose which way each channel's FILTER knob
-// works (turn left for the low-pass, right for the high-pass). RESONANCE
-// adds the peak at the cutoff for all channels.
+// FILTER section: LPF or HPF picks the filter every channel's FILTER knob
+// works (one at a time). The selected button blinks; press it again to turn
+// the filter off. RESONANCE sets the peak at the cutoff for all channels.
 function MixerFilterSection({ filter, onChange }) {
+  const blink = useBlink(!!filter.type, 500);
+  const press = (type) => onChange({ type: filter.type === type ? null : type });
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>FILTER</Text>
@@ -15,15 +18,15 @@ function MixerFilterSection({ filter, onChange }) {
         <CdjButton
           testID="mixer-filter-lpf"
           label="LPF"
-          active={filter.lpf}
-          onPress={() => onChange({ lpf: !filter.lpf })}
+          active={filter.type === 'LPF' && blink}
+          onPress={() => press('LPF')}
           style={styles.button}
         />
         <CdjButton
           testID="mixer-filter-hpf"
           label="HPF"
-          active={filter.hpf}
-          onPress={() => onChange({ hpf: !filter.hpf })}
+          active={filter.type === 'HPF' && blink}
+          onPress={() => press('HPF')}
           style={styles.button}
         />
       </View>

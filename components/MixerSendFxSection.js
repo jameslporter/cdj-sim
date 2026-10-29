@@ -1,7 +1,8 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from '../constants/theme';
-import { SEND_FX_SOURCES } from '../utils/sendFx';
+import useBlink from '../hooks/useBlink';
+import { SEND_FX_SOURCES, SEND_FX_TYPES } from '../utils/sendFx';
 import CdjButton from './CdjButton';
 import Knob from './Knob';
 
@@ -14,11 +15,19 @@ const SHORT_LABELS = {
   EXT2: ['EXT2', ''],
 };
 
-// The DJM-V10's SEND section: pick a built-in effect (or an external unit on
-// EXT1/EXT2), shape it with SIZE/FEEDBACK, TIME and TONE, and send channels
-// into it with each channel's SEND knob. MASTER MIX routes the effect sound
+// The DJM-V10's SEND section: pick one built-in effect (EXT1/EXT2 can be on
+// alongside it), shape it with SIZE/FEEDBACK, TIME and TONE, and send
+// channels into it with each channel's SEND knob. The selected buttons blink;
+// pressing a blinking button turns it off. The effect sound comes back on any
+// channel whose input selector is on BUILT-IN, and MASTER MIX routes it
 // straight to the master at MIX LEVEL.
 function MixerSendFxSection({ sendFx, onChange }) {
+  const selected = (source) => (SEND_FX_TYPES.includes(source) ? sendFx.source === source : !!sendFx[source.toLowerCase()]);
+  const blink = useBlink(SEND_FX_SOURCES.some(selected), 500);
+  const press = (source) => {
+    if (SEND_FX_TYPES.includes(source)) onChange({ source: sendFx.source === source ? null : source });
+    else onChange({ [source.toLowerCase()]: !sendFx[source.toLowerCase()] });
+  };
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>SEND</Text>
@@ -29,11 +38,11 @@ function MixerSendFxSection({ sendFx, onChange }) {
             testID={`mixer-sendfx-type-${source.toLowerCase().replace(' ', '-')}`}
             label={SHORT_LABELS[source][0]}
             sublabel={SHORT_LABELS[source][1] || undefined}
-            active={sendFx.source === source}
+            active={selected(source) && blink}
             activeBg="#10314d"
             activeBorder={colors.blue}
             activeTextColor={colors.blue}
-            onPress={() => onChange({ source })}
+            onPress={() => press(source)}
             style={styles.typeButton}
           />
         ))}
