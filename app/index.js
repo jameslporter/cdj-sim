@@ -136,15 +136,14 @@ export default function CdjSimulator() {
   const onAir = ['A', 'B'].map((id) => mixer.channelDecks.some((d, i) => d === id && live[i]));
 
   // BEAT FX tempo. In AUTO the V10 measures the BPM of the sound it's
-  // assigned to (70–180 BPM); here that's the deck on that channel, or the
-  // master deck for MASTER. TAP uses the tapped tempo.
-  const assignedDeck = beatFx.assign.startsWith('CH') ? mixer.channelDecks[Number(beatFx.assign.slice(2)) - 1] : null;
-  const autoBpmSource =
-    beatFx.assign === 'MASTER'
-      ? (masterDeck ?? (deckB.isPlaying && !deckA.isPlaying ? deckB : deckA))
-      : assignedDeck
-        ? decksRef.current[assignedDeck]
-        : null;
+  // assigned to (70–180 BPM); here that's the deck on the first assigned
+  // channel that's playing one. TAP uses the tapped tempo.
+  const assignedDeck =
+    beatFx.assigns
+      .filter((key) => key.startsWith('CH'))
+      .map((key) => mixer.channelDecks[Number(key.slice(2)) - 1])
+      .find(Boolean) ?? null;
+  const autoBpmSource = assignedDeck ? decksRef.current[assignedDeck] : null;
   const beatFxBpm =
     beatFx.bpmMode === 'TAP' && beatFx.tapBpm ? beatFx.tapBpm : autoBpmSource ? foldBpm(autoBpmSource.displayedBpm) : null;
   useEffect(() => {

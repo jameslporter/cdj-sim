@@ -240,9 +240,12 @@ export const DRILLS = [
         check: ({ A, mixer }) => A.isPlaying && mixer.channels[CH_A].fader > 0.5,
       },
       {
-        text: 'In BEAT FX, pick ECHO with BEAT FX SELECT and set ASSIGN to CH3.',
-        targets: ['mixer-beatfx-effect', 'mixer-beatfx-assign'],
-        check: ({ mixer }) => mixer.beatFx.effect === 'ECHO' && mixer.beatFx.assign === 'CH3',
+        text: 'In BEAT FX, pick ECHO with BEAT FX SELECT, and light channel 3\'s BEAT FX ASSIGN button (and only that one).',
+        targets: ['mixer-beatfx-effect', 'mixer-ch3-beatfx-assign'],
+        check: ({ mixer }) =>
+          mixer.beatFx.effect === 'ECHO' &&
+          mixer.beatFx.assigns.length === 1 &&
+          mixer.beatFx.assigns[0] === 'CH3',
       },
       {
         text: 'Set the BEAT to 3/4 or 1 with BEAT ◀ ▶ (or the X-PAD).',

@@ -5,6 +5,7 @@ import Knob from './Knob';
 import ThreeWaySwitch from './ThreeWaySwitch';
 import VerticalFader from './VerticalFader';
 import VuMeter from './VuMeter';
+import useBlink from '../hooks/useBlink';
 import { useLearnTarget } from '../hooks/useLearningMode';
 import LearnView from './LearnView';
 
@@ -26,6 +27,9 @@ function MixerChannelStrip({
   onUpdateChannel,
   onCycleInput,
   onToggleCue,
+  fxAssigned,
+  fxOn,
+  onToggleFxAssign,
   idPrefix,
 }) {
   // Bound here (inside the memoized component) rather than by the parent's
@@ -35,6 +39,9 @@ function MixerChannelStrip({
   // when e.g. the other channel or the crossfader is what changed.
   const handleInputCycle = useCallback(() => onCycleInput(index), [onCycleInput, index]);
   const handleToggleCue = useCallback(() => onToggleCue(index), [onToggleCue, index]);
+  const handleToggleFxAssign = useCallback(() => onToggleFxAssign?.(index), [onToggleFxAssign, index]);
+  // BEAT FX ASSIGN lights when selected and blinks while BEAT FX is on.
+  const fxBlink = useBlink(fxAssigned && fxOn, 500);
   const handleTrimChange = useCallback((v) => onUpdateChannel(index, { trim: v }), [onUpdateChannel, index]);
   const handleEqHiChange = useCallback((v) => onUpdateChannel(index, { eqHi: v }), [onUpdateChannel, index]);
   const handleEqHiMidChange = useCallback((v) => onUpdateChannel(index, { eqHiMid: v }), [onUpdateChannel, index]);
@@ -95,10 +102,18 @@ function MixerChannelStrip({
         testID={`${idPrefix}filter`}
         label="FILTER"
         value={channel.filter}
-        bipolar
         onChange={handleFilterChange}
         size={34}
       />
+
+      <Pressable
+        testID={`${idPrefix}beatfx-assign`}
+        accessibilityLabel={`Channel ${channelNumber} BEAT FX ASSIGN`}
+        style={[styles.fxAssignButton, fxAssigned && fxBlink && styles.fxAssignButtonActive]}
+        onPress={handleToggleFxAssign}
+      >
+        <Text style={[styles.fxAssignText, fxAssigned && fxBlink && styles.fxAssignTextActive]}>BEAT FX</Text>
+      </Pressable>
 
       <Pressable
         testID={`${idPrefix}cue`}
@@ -165,6 +180,28 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: '700',
     height: 10,
+  },
+  fxAssignButton: {
+    width: 48,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: colors.buttonBg,
+    borderWidth: 1,
+    borderColor: colors.buttonBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fxAssignButtonActive: {
+    backgroundColor: '#4d1616',
+    borderColor: colors.red,
+  },
+  fxAssignText: {
+    color: colors.textMuted,
+    fontSize: 7,
+    fontWeight: '700',
+  },
+  fxAssignTextActive: {
+    color: colors.red,
   },
   cueButton: {
     width: 40,

@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import useBlink from '../hooks/useBlink';
 import { colors } from '../constants/theme';
 import Knob from './Knob';
 import ThreeWaySwitch from './ThreeWaySwitch';
@@ -28,7 +29,10 @@ function MicChannel({ label, mic, onChange, idPrefix }) {
   );
 }
 
-function MixerMicSection({ mic1, mic2, onChangeMic1, onChangeMic2 }) {
+// The MIC section has its own BEAT FX ASSIGN button, like each channel.
+function MixerMicSection({ mic1, mic2, onChangeMic1, onChangeMic2, fxAssigned, fxOn, onToggleFxAssign }) {
+  const fxBlink = useBlink(fxAssigned && fxOn, 500);
+  const lit = fxAssigned && fxBlink;
   return (
     <View style={styles.section}>
       <Text style={styles.sectionLabel}>MIC</Text>
@@ -36,6 +40,14 @@ function MixerMicSection({ mic1, mic2, onChangeMic1, onChangeMic2 }) {
         <MicChannel label="1" mic={mic1} onChange={onChangeMic1} idPrefix="mixer-mic1-" />
         <MicChannel label="2" mic={mic2} onChange={onChangeMic2} idPrefix="mixer-mic2-" />
       </View>
+      <Pressable
+        testID="mixer-mic-beatfx-assign"
+        accessibilityLabel="MIC BEAT FX ASSIGN"
+        style={[styles.fxAssignButton, lit && styles.fxAssignButtonActive]}
+        onPress={onToggleFxAssign}
+      >
+        <Text style={[styles.fxAssignText, lit && styles.fxAssignTextActive]}>BEAT FX</Text>
+      </Pressable>
     </View>
   );
 }
@@ -52,6 +64,28 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
+  },
+  fxAssignButton: {
+    width: 56,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: colors.buttonBg,
+    borderWidth: 1,
+    borderColor: colors.buttonBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fxAssignButtonActive: {
+    backgroundColor: '#4d1616',
+    borderColor: colors.red,
+  },
+  fxAssignText: {
+    color: colors.textMuted,
+    fontSize: 7,
+    fontWeight: '700',
+  },
+  fxAssignTextActive: {
+    color: colors.red,
   },
   row: {
     flexDirection: 'row',

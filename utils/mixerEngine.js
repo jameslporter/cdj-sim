@@ -1,27 +1,30 @@
 import { getAudioContext } from './audioContext';
 import { beatFxInfo, createBeatFx } from './beatFx';
 import { createSendFx, SEND_FX_TYPES } from './sendFx';
-import { DECK_IDS, deckOnChannel, INPUT_OPTIONS, MIXER_CHANNELS } from '../constants/setup';
+import { DECK_IDS, deckOnChannel, INPUT_OPTIONS, inputReturnsBuiltIn, MIXER_CHANNELS } from '../constants/setup';
 
 // The DJM-V10's signal path, built from Web Audio nodes (react-native-audio-api
 // on every platform). Each deck plays into its cable (see constants/setup.js),
 // which reaches a channel when that channel's input selector is on the jack
 // the cable is plugged into. Six channels, each:
 //
-//   input → TRIM → EQ (LOW, LO-MID, HI-MID, HI) → FILTER (LPF, HPF) ─┬→ (+ SEND return) → FADER ─┬→ CROSSFADER → master bus
-//                                                                   ├→ meter (pre-fader)          └→ BEAT FX (when assigned)
-//                                                                   ├→ SEND → send effect
-//                                                                   └→ CUE → headphones cue bus
-//   master bus → ISOLATOR (LOW, MID, HI) → MASTER LEVEL → master meter
+//   input → TRIM → COMP → EQ (LOW, LO-MID, HI-MID, HI) → FILTER (LPF or HPF) ─┬→ FADER ─┬→ CROSSFADER → master bus
+//                                                                            ├→ meter   └→ BEAT FX (when assigned)
+//                                                                            ├→ SEND → the send effect
+//                                                                            └→ CUE → headphones cue bus
+//   master bus → ISOLATOR (LOW, MID, HI) → MASTER LEVEL → limiter → master meter
 //
-// BEAT FX sits after the channel fader (so echoes keep sounding when the
-// fader comes down), or on the master bus before the isolator. Its sound
-// comes back in before the crossfader. FX FREQUENCY splits the sound into
-// LOW / MID / HI bands so the effect only hits the bands that are lit.
+// BEAT FX: each channel has a BEAT FX ASSIGN button and several can be lit
+// at once, so each channel gets its own copy of the selected effect. It sits
+// after the channel fader (the manual: with the fader at 0 "only the effect
+// sound remains") and its sound comes back in before the crossfader. FX
+// FREQUENCY splits the sound into LOW / MID / HI bands so the effect only
+// hits the bands that are lit. There is no BEAT FX on the master.
 //
-// Each channel's SEND feeds its own copy of the send effect. Its sound comes
-// back into that channel before the fader, or, with MASTER MIX on, straight
-// into the master bus at MASTER MIX LEVEL.
+// SEND: one shared effect unit. Every channel's SEND knob feeds it. Its sound
+// comes back as the input of any channel whose input selector is on BUILT-IN
+// (or BUILT-IN·EXT), where it has its own TRIM, EQ, FILTER and fader, and,
+// with MASTER MIX on, straight into the master bus at MASTER MIX LEVEL.
 //
 // The device has one audio output, so it plays the HEADPHONES section: MIXING
 // blends the cue bus with the master, and SPLIT puts cue in the left ear and
@@ -92,14 +95,19 @@ export function crossfaderGain(assign, x) {
   return 1;
 }
 
-// FILTER knob (0–1, 0.5 = off): left sweeps a low-pass down, right sweeps a
-// high-pass up. Returns { lp, hp } cutoff frequencies in Hz.
-export function filterKnobToCutoffs(v, { lpf = true, hpf = true } = {}) {
+// FILTER knob (0–1). The FILTER section picks one filter for every channel:
+// with LPF, turning clockwise lowers the cutoff; with HPF, turning clockwise
+// raises it. Fully left (or no filter selected) leaves the sound alone.
+// Returns { lp, hp } cutoff frequencies in Hz.
+export function filterKnobToCutoffs(v, type) {
   const dead = 0.03;
   let lp = 22000;
   let hp = 10;
-  if (lpf && v < 0.5 - dead) lp = 20000 * (40 / 20000) ** ((0.5 - dead - v) / (0.5 - dead));
-  if (hpf && v > 0.5 + dead) hp = 10 * (12000 / 10) ** ((v - 0.5 - dead) / (0.5 - dead));
+  if (v > dead) {
+    const x = (v - dead) / (1 - dead);
+    if (type === 'LPF') lp = 20000 * (40 / 20000) ** x;
+    if (type === 'HPF') hp = 10 * (12000 / 10) ** x;
+  }
   return { lp, hp };
 }
 
@@ -155,26 +163,23 @@ function createChannel(ctx, masterBus, cueBus) {
   const eqHi = biquad(ctx, 'highshelf', 7000);
   const lpf = biquad(ctx, 'lowpass', 22000, 0.7);
   const hpf = biquad(ctx, 'highpass', 10, 0.7);
-  const preFader = ctx.createGain(); // the channel plus its SEND return
   const fader = ctx.createGain();
   const fxDry = ctx.createGain(); // the original sound past BEAT FX
   const fxSend = gainNode(ctx, 0); // into BEAT FX when it's assigned here
   const fxReturn = gainNode(ctx, 0); // BEAT FX sound back into this channel
   const xfade = ctx.createGain();
-  const send = gainNode(ctx, 0); // the SEND knob
-  const sendToChannel = gainNode(ctx, 1);
-  const sendToMaster = gainNode(ctx, 0);
+  const send = gainNode(ctx, 0); // the SEND knob, into the shared send effect
+  const sendReturn = gainNode(ctx, 0); // the send effect, in as this channel's input
   const cuePost = ctx.createGain(); // CUE tap after EQ/filter
   const cuePre = ctx.createGain(); // CUE tap straight after TRIM (PRE EQ)
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 512;
 
-  chain(input, trim, comp, eqLow, eqLoMid, eqHiMid, eqHi, lpf, hpf, preFader, fader, fxDry, xfade, masterBus);
+  chain(input, trim, comp, eqLow, eqLoMid, eqHiMid, eqHi, lpf, hpf, fader, fxDry, xfade, masterBus);
   fader.connect(fxSend);
   fxReturn.connect(xfade);
   hpf.connect(send);
-  sendToChannel.connect(preFader);
-  sendToMaster.connect(masterBus);
+  sendReturn.connect(input);
   hpf.connect(analyser);
   trim.connect(compSense);
   hpf.connect(cuePost);
@@ -203,9 +208,7 @@ function createChannel(ctx, masterBus, cueBus) {
     fxReturn,
     xfade,
     send,
-    sendFx: null, // built the first time this channel's SEND is turned up
-    sendToChannel,
-    sendToMaster,
+    sendReturn,
     cuePost,
     cuePre,
     analyser,
@@ -216,18 +219,17 @@ function createChannel(ctx, masterBus, cueBus) {
 const LOW_MID = 250;
 const MID_HI = 2500;
 
-// The BEAT FX unit: one effect at a time, inserted on a channel or the master.
-// `targets` are { dry, send, ret } gain nodes for each place it can go.
-function createBeatFxUnit(ctx, targets) {
+// One channel's BEAT FX: the selected effect, inserted on that channel when
+// its BEAT FX ASSIGN button is lit. `target` is the channel's { dry, send,
+// ret } gain nodes.
+function createBeatFxUnit(ctx, target) {
   const bus = ctx.createGain(); // whatever is sent to the effect
   const fxIn = ctx.createGain();
   const fxOut = ctx.createGain();
-  const ret = ctx.createGain(); // effect + untouched bands, back to the target
+  const ret = ctx.createGain(); // effect + untouched bands, back to the channel
   fxOut.connect(ret);
-  for (const t of Object.values(targets)) {
-    t.send.connect(bus);
-    ret.connect(t.ret);
-  }
+  target.send.connect(bus);
+  ret.connect(target.ret);
 
   // Full band (all three FX FREQUENCY buttons lit) or the split bands.
   const full = gainNode(ctx, 1);
@@ -260,7 +262,6 @@ function createBeatFxUnit(ctx, targets) {
 
   let effect = null;
   let wasOn = false;
-  let lastTarget = null;
 
   const swapEffect = (name) => {
     const old = effect;
@@ -281,7 +282,8 @@ function createBeatFxUnit(ctx, targets) {
   };
 
   return {
-    apply(state, bpm) {
+    /** `on`: BEAT FX is on and this channel's ASSIGN button is lit. */
+    apply(state, bpm, on) {
       const info = beatFxInfo(state.effect);
       if (!effect || effect.name !== info.name) {
         if (effect && wasOn) effect.stop();
@@ -298,30 +300,22 @@ function createBeatFxUnit(ctx, targets) {
       const depth = state.depth ?? 0.5;
       effect.update({ seconds, value, depth });
 
-      const target = state.on ? state.assign : null;
       const allBands = state.bands.low && state.bands.mid && state.bands.hi;
       const dry = effect.dryLevel(depth);
-      for (const [key, t] of Object.entries(targets)) {
-        const here = key === target;
-        set(t.send.gain, here ? 1 : 0, ctx);
-        set(t.dry.gain, here ? dry : 1, ctx);
-      }
-      set(full.gain, target && allBands ? 1 : 0, ctx);
+      set(target.send.gain, on ? 1 : 0, ctx);
+      set(target.dry.gain, on ? dry : 1, ctx);
+      set(full.gain, on && allBands ? 1 : 0, ctx);
       for (const [name, b] of Object.entries(bands)) {
         const lit = state.bands[name];
-        set(b.toFx.gain, target && !allBands && lit ? 1 : 0, ctx);
-        set(b.bypass.gain, target && !allBands && !lit ? 1 - dry : 0, ctx);
+        set(b.toFx.gain, on && !allBands && lit ? 1 : 0, ctx);
+        set(b.bypass.gain, on && !allBands && !lit ? 1 - dry : 0, ctx);
       }
       // The return follows the effect: while on, and afterwards for trails.
-      if (target) lastTarget = target;
-      for (const [key, t] of Object.entries(targets)) {
-        const live = key === lastTarget && (state.on || effect.trails);
-        set(t.ret.gain, live ? 1 : 0, ctx);
-      }
+      set(target.ret.gain, on || effect.trails ? 1 : 0, ctx);
 
-      if (state.on && !wasOn) effect.start();
-      if (!state.on && wasOn) effect.stop();
-      wasOn = !!state.on;
+      if (on && !wasOn) effect.start();
+      if (!on && wasOn) effect.stop();
+      wasOn = on;
     },
   };
 }
@@ -343,15 +337,9 @@ function createEngine(ctx) {
   const masterPan = ctx.createStereoPanner();
   const hpLevel = ctx.createGain();
 
-  // BEAT FX on MASTER goes between the master bus and the isolator.
-  const masterDry = ctx.createGain();
-  const masterFxSend = gainNode(ctx, 0);
-  const masterFxReturn = gainNode(ctx, 0);
   const limiter = ctx.createWaveShaper();
   limiter.curve = limiterCurve();
-  chain(masterBus, masterDry, isoLow, isoMid, isoHi, masterLevel, limiter, masterAnalyser);
-  masterBus.connect(masterFxSend);
-  masterFxReturn.connect(isoLow);
+  chain(masterBus, isoLow, isoMid, isoHi, masterLevel, limiter, masterAnalyser);
   limiter.connect(hpMaster);
   chain(cueBus, hpCue, cuePan, hpLevel);
   chain(hpMaster, masterPan, hpLevel);
@@ -393,22 +381,19 @@ function createEngine(ctx) {
     })
   );
 
-  const ensureSendFx = (node) => {
-    if (!node.sendFx) {
-      node.sendFx = createSendFx(ctx);
-      node.send.connect(node.sendFx.input);
-      node.sendFx.output.connect(node.sendToChannel);
-      node.sendFx.output.connect(node.sendToMaster);
-    }
-    return node.sendFx;
-  };
-
-  const beatFx = createBeatFxUnit(ctx, {
-    ...Object.fromEntries(
-      channels.map((ch, i) => [`CH${i + 1}`, { dry: ch.fxDry, send: ch.fxSend, ret: ch.fxReturn }])
-    ),
-    MASTER: { dry: masterDry, send: masterFxSend, ret: masterFxReturn },
+  // The shared SEND effect: every channel's SEND in, back out to the
+  // channels on BUILT-IN and (MASTER MIX) the master.
+  const sendFxUnit = createSendFx(ctx);
+  const masterMix = gainNode(ctx, 0);
+  channels.forEach((ch) => {
+    ch.send.connect(sendFxUnit.input);
+    sendFxUnit.output.connect(ch.sendReturn);
   });
+  sendFxUnit.output.connect(masterMix);
+  masterMix.connect(masterBus);
+
+  // Each channel's BEAT FX, built the first time its ASSIGN button is lit.
+  const beatFxUnits = channels.map(() => null);
 
   return {
     /** The node deck `i` (0 = A, 1 = B), or its scratch voice, plays into: its cable. */
@@ -417,7 +402,14 @@ function createEngine(ctx) {
     /** Apply the mixer state (see hooks/useMixerState.js). */
     /** Apply the BEAT FX section (see hooks/useMixerState.js) at `bpm`. */
     applyBeatFx(state, bpm) {
-      beatFx.apply(state, bpm);
+      channels.forEach((ch, i) => {
+        const assigned = state.assigns.includes(`CH${i + 1}`);
+        if (!beatFxUnits[i] && !assigned) return;
+        if (!beatFxUnits[i]) {
+          beatFxUnits[i] = createBeatFxUnit(ctx, { dry: ch.fxDry, send: ch.fxSend, ret: ch.fxReturn });
+        }
+        beatFxUnits[i].apply(state, bpm, !!state.on && assigned);
+      });
     },
 
     apply({ channels: chState, crossfader, master, filter, headphones, sendFx }) {
@@ -431,7 +423,7 @@ function createEngine(ctx) {
         set(node.eqLoMid.gain, eqKnobToDb(ch.eqLoMid), ctx);
         set(node.eqHiMid.gain, eqKnobToDb(ch.eqHiMid), ctx);
         set(node.eqHi.gain, eqKnobToDb(ch.eqHi), ctx);
-        const { lp, hp } = filterKnobToCutoffs(ch.filter ?? 0.5, filter);
+        const { lp, hp } = filterKnobToCutoffs(ch.filter ?? 0, filter.type);
         const q = 0.7 + (filter.resonance ?? 0.3) * 8;
         set(node.lpf.frequency, lp, ctx);
         set(node.hpf.frequency, hp, ctx);
@@ -448,16 +440,19 @@ function createEngine(ctx) {
         set(node.xfade.gain, crossfaderGain(ch.assign, crossfader), ctx);
         set(node.cuePost.gain, ch.cue && !headphones.preEq ? 1 : 0, ctx);
         set(node.cuePre.gain, ch.cue && headphones.preEq ? 1 : 0, ctx);
-        if (sendFx) {
-          // EXT1/EXT2 return nothing: there's no external effects unit plugged in.
-          const builtIn = SEND_FX_TYPES.includes(sendFx.source);
-          const sendLevel = builtIn ? (ch.send ?? 0) ** 1.5 : 0;
-          set(node.send.gain, sendLevel, ctx);
-          if (sendLevel > 0 || node.sendFx) ensureSendFx(node).apply(sendFx);
-          set(node.sendToChannel.gain, sendFx.masterMixOn ? 0 : 1, ctx);
-          set(node.sendToMaster.gain, sendFx.masterMixOn ? sendFx.masterMixLevel * 1.4 : 0, ctx);
-        }
+        // SEND return: the effect sound is this channel's input on BUILT-IN.
+        // A return channel's own SEND is kept shut so it can't feed back
+        // into the effect.
+        const isReturn = inputReturnsBuiltIn(INPUT_OPTIONS[ch.inputIndex ?? 0]);
+        set(node.sendReturn.gain, isReturn ? 1 : 0, ctx);
+        // EXT1/EXT2 return nothing: there's no external effects unit plugged in.
+        const builtIn = SEND_FX_TYPES.includes(sendFx?.source);
+        set(node.send.gain, builtIn && !isReturn ? (ch.send ?? 0) ** 1.5 : 0, ctx);
       });
+      if (sendFx) {
+        if (SEND_FX_TYPES.includes(sendFx.source)) sendFxUnit.apply(sendFx);
+        set(masterMix.gain, sendFx.masterMixOn ? sendFx.masterMixLevel * 1.4 : 0, ctx);
+      }
       const isoOn = master.isolatorOn;
       set(isoLow.gain, isoOn ? eqKnobToDb(master.isoLow) : 0, ctx);
       set(isoMid.gain, isoOn ? eqKnobToDb(master.isoMid) : 0, ctx);

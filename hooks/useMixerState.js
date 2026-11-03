@@ -3,7 +3,10 @@ import { clamp } from '../utils/format';
 
 import { DECK_IDS, deckOnChannel, defaultInputIndex, INPUT_OPTIONS, MIXER_CHANNELS } from '../constants/setup';
 export { BEAT_FX_NAMES } from '../utils/beatFx';
-export const BEAT_FX_ASSIGNS = [...Array.from({ length: MIXER_CHANNELS }, (_, i) => `CH${i + 1}`), 'MASTER'];
+// Where BEAT FX can go: each channel and the MIC section has its own BEAT FX
+// ASSIGN button, and several can be lit at once. The V10 has no master
+// assign for BEAT FX.
+export const BEAT_FX_ASSIGNS = [...Array.from({ length: MIXER_CHANNELS }, (_, i) => `CH${i + 1}`), 'MIC'];
 
 function makeChannel(index) {
   return {
@@ -14,7 +17,8 @@ function makeChannel(index) {
     eqLow: 0.5,
     comp: 0,
     send: 0,
-    filter: 0.5,
+    // FILTER starts fully left: no filtering, whichever of LPF/HPF is on.
+    filter: 0,
     fader: 0.85,
     // Crossfader assign: left half of the mixer to A, right half to B.
     assign: index < MIXER_CHANNELS / 2 ? 'A' : 'B',
@@ -49,16 +53,21 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
   });
   const [mic1, setMic1] = useState({ mode: 'off', level: 0.5, eqHi: 0.5, eqLow: 0.5 });
   const [mic2, setMic2] = useState({ mode: 'off', level: 0.5, eqHi: 0.5, eqLow: 0.5 });
-  // FILTER section: which side of each channel's FILTER knob is active
-  // (LPF to the left, HPF to the right) and the shared RESONANCE.
-  const [filter, setFilter] = useState({ lpf: true, hpf: true, resonance: 0.3 });
+  // FILTER section: which filter every channel's FILTER knob works ('LPF',
+  // 'HPF', or null for off; only one at a time) and the shared RESONANCE.
+  const [filter, setFilter] = useState({ type: null, resonance: 0.3 });
   // HEADPHONES section. The device's one output plays the headphones, so
   // MIXING starts at MASTER: you hear the mix until you turn it toward CUE.
   const [headphones, setHeadphones] = useState({ mixing: 1, level: 0.75, split: false, preEq: false });
-  // SEND FX: the built-in effect (or EXT1/EXT2), its knobs, and MASTER MIX.
-  // How much each channel sends is that channel's SEND knob.
+  // SEND FX: one shared effect unit. `source` is the selected BUILT-IN
+  // effect (or null for none); EXT1/EXT2 can be on alongside it. Each
+  // channel's SEND knob sets how much goes in. The effect sound comes back on
+  // any channel whose input selector is on BUILT-IN, and to the master with
+  // MASTER MIX on.
   const [sendFx, setSendFx] = useState({
-    source: 'SHORT DELAY',
+    source: null,
+    ext1: false,
+    ext2: false,
     size: 0.5,
     time: 0.5,
     tone: 0.5,
@@ -67,8 +76,9 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
   });
   // BEAT FX. `beats` remembers the BEAT value picked for each effect; `time`
   // is a TIME knob override in ms (or %), cleared by the BEAT buttons.
+  // `assigns` are the lit BEAT FX ASSIGN buttons (CH1–CH6, MIC).
   const [beatFx, setBeatFx] = useState({
-    assign: 'CH3',
+    assigns: ['CH3'],
     on: false,
     effect: 'ECHO',
     beats: {},
@@ -95,6 +105,14 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
         i === index ? { ...ch, inputIndex: (ch.inputIndex + dir + INPUT_OPTIONS.length) % INPUT_OPTIONS.length } : ch
       )
     );
+  }, []);
+
+  // A BEAT FX ASSIGN button (CH1–CH6 or MIC) toggles that place on or off.
+  const toggleBeatFxAssign = useCallback((key) => {
+    setBeatFx((b) => ({
+      ...b,
+      assigns: b.assigns.includes(key) ? b.assigns.filter((k) => k !== key) : [...b.assigns, key],
+    }));
   }, []);
 
   const toggleChannelCue = useCallback((index) => {
@@ -164,5 +182,6 @@ export default function useMixerState({ deckASignal, deckBSignal }) {
     updateChannel,
     cycleChannelInput,
     toggleChannelCue,
+    toggleBeatFxAssign,
   };
 }
